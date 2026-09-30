@@ -29,7 +29,7 @@ This diversity leads to severe operational bottlenecks:
 * **Downstream Latency:** Threat detection systems and machine learning platforms cannot run analytics without prior normalization.
 
 ### The ULPF Solution
-The **Universal Log Pre-processing Framework (ULPF)** is a resilient, vendor-agnostic, containerized pre-processing system. It captures logs over Syslog UDP/TCP and HTTP REST, content-seals them with SHA-256 in immutable WORM chunks, dynamically routes them through a **Dual-Path Engine** (Hot-Path regex packs vs. Cold-Path Drain3 prefix-tree clustering), and outputs canonical **OCSF v1.2.0 Class 4001 (Network Activity)** events into an Apache Parquet data lake and low-latency SIEM stream.
+The **Universal Log Pre-processing Framework (ULPF)** is a resilient, vendor-agnostic, containerized pre-processing system. It captures logs over Syslog UDP/TCP and HTTP REST, content-seals them with SHA-256 in immutable WORM chunks, dynamically routes them through a **Dual-Path Engine** (Hot-Path regex packs vs. Cold-Path Drain3 prefix-tree clustering), and outputs canonical **OSSEM+ECF Seed Dictionary** events into an Apache Parquet data lake and low-latency SIEM stream.
 
 Every normalized record remains cryptographically linked to its raw bitstream via an **Ed25519-signed Merkle Tree Ledger**.
 
@@ -91,7 +91,7 @@ All microservices communicate across an internal Docker bridge. The following po
 ### Step 1: Clone Repository
 ```bash
 git clone https://github.com/PtKartikVashishtha/SIH-2026-ULPF.git
-cd ULPF
+cd SIH-2026-ULPF
 ```
 
 ---
