@@ -1,0 +1,57 @@
+# Docker Compose override for strictly isolated Air-Gap environments (M7).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.airgap.yml up --build
+# Ensures zero outbound network ingress/egress beyond the local container boundary.
+services:
+  volume-init:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+  ingestion-svc:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+  integrity-svc:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+  pipeline-svc:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+  sinks-svc:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+  review-api:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+  review-ui:
+    pull_policy: never
+    build:
+      pull: false
+    networks:
+      ulpf-airgap-net:
+
+networks:
+  ulpf-airgap-net:
+    driver: bridge
+    internal: true

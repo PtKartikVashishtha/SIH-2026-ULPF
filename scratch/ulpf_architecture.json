@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Universal Log Pre-processing Framework (ULPF) Runtime Architecture",
+    "output": "docs/architecture.html",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "viewBox": [1370, 680],
+    "views": [
+      {
+        "id": "ingest-and-preserve",
+        "label": "Ingestion & Raw Preservation",
+        "focus": ["perimeter_sources", "cli_tools", "ingestion_svc", "raw_store"],
+        "note": "Perimeter logs enter via UDP/TCP/HTTP sockets and are committed losslessly to Zstd storage."
+      },
+      {
+        "id": "dual-path-pipeline",
+        "label": "Dual-Path Hot/Cold Normalization",
+        "focus": ["event_bus", "integrity_svc", "router_svc", "rcu_engine", "drain_clustering", "sqlite_db", "review_console"],
+        "note": "High-confidence logs take the RCU hot path; unknown logs cluster in Drain3 for analyst review."
+      },
+      {
+        "id": "integrity-and-sinks",
+        "label": "Cryptographic Ledger & Enterprise Sinks",
+        "focus": ["normalizer_svc", "parquet_lake", "siem_sink"],
+        "note": "Normalized OCSF events fan out to Parquet and SIEM while Merkle trees anchor raw audit proofs."
+      }
+    ]
+  },
+  "components": [
+    { "id": "perimeter_sources", "type": "external", "label": "Perimeter Log Sources", "sublabel": "Syslog, CEF, NetFlow", "pos": [35, 230], "size": [150, 62] },
+    { "id": "cli_tools", "type": "external", "label": "CLI & Test Suite", "sublabel": "benchmark, airgap", "pos": [35, 370], "size": [150, 62] },
+    { "id": "ingestion_svc", "type": "security", "label": "Ingestion Service", "sublabel": "UDP/TCP :514, HTTP", "pos": [265, 230], "size": [150, 62], "tag": "ingestion-svc" },
+    { "id": "raw_store", "type": "database", "label": "Lossless Raw Store", "sublabel": "Zstd chunks + spool", "pos": [265, 90], "size": [150, 62], "tag": "data/raw_store" },
+    { "id": "event_bus", "type": "messagebus", "label": "Internal Event Bus", "sublabel": "RawIngestV1 stream", "pos": [495, 230], "size": [150, 62], "tag": "bus.py" },
+    { "id": "integrity_svc", "type": "security", "label": "Integrity Service", "sublabel": "SHA-256 Merkle root", "pos": [495, 90], "size": [150, 62], "tag": "integrity-svc" },
+    { "id": "router_svc", "type": "backend", "label": "Dual-Path Router", "sublabel": "Threshold (0.85)", "pos": [725, 230], "size": [150, 62], "tag": "pipeline-svc" },
+    { "id": "rcu_engine", "type": "backend", "label": "RCU Engine & Packs", "sublabel": "Atomic hot-reload", "pos": [955, 230], "size": [150, 62], "tag": "rcu.py" },
+    { "id": "drain_clustering", "type": "backend", "label": "Drain3 Clustering", "sublabel": "Prefix-tree cluster", "pos": [725, 370], "size": [150, 62], "tag": "drain.py" },
+    { "id": "sqlite_db", "type": "database", "label": "SQLite State Store", "sublabel": "raw, queue, merkle", "pos": [725, 510], "size": [150, 62], "tag": "data/ulpf.db" },
+    { "id": "review_console", "type": "frontend", "label": "Review UI & API", "sublabel": "Next.js + Express", "pos": [955, 510], "size": [150, 62], "tag": "review-ui" },
+    { "id": "normalizer_svc", "type": "backend", "label": "OCSF Normalizer", "sublabel": "OCSF Class 4001", "pos": [1185, 230], "size": [150, 62], "tag": "normalizer.py" },
+    { "id": "parquet_lake", "type": "database", "label": "Parquet Data Lake", "sublabel": "Partitioned lake", "pos": [1185, 90], "size": [150, 62], "tag": "sinks-svc" },
+    { "id": "siem_sink", "type": "external", "label": "SIEM / SOC Sink", "sublabel": "Splunk, CEF, JSONL", "pos": [1185, 370], "size": [150, 62], "tag": "sinks-svc" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Ingress & Lossless Storage Demarcation", "wraps": ["perimeter_sources", "cli_tools", "ingestion_svc", "raw_store"], "pad": 16 },
+    { "kind": "security-group", "label": "Dual-Path Preprocessing & Self-Learning Engine", "wraps": ["event_bus", "integrity_svc", "router_svc", "rcu_engine", "drain_clustering", "sqlite_db", "review_console"], "pad": 16 },
+    { "kind": "region", "label": "OCSF Normalization & Analytics Sinks", "wraps": ["normalizer_svc", "parquet_lake", "siem_sink"], "pad": 16 }
+  ],
+  "connections": [
+    { "from": "perimeter_sources", "to": "ingestion_svc", "label": "syslog wire", "variant": "emphasis" },
+    { "from": "cli_tools", "to": "ingestion_svc", "label": "HTTP batch", "variant": "dashed" },
+    { "from": "ingestion_svc", "to": "raw_store", "label": "Zstd chunk", "variant": "security" },
+    { "from": "ingestion_svc", "to": "event_bus", "label": "RawIngestV1", "variant": "emphasis" },
+    { "from": "event_bus", "to": "integrity_svc", "label": "MerkleLeafV1", "variant": "security" },
+    { "from": "event_bus", "to": "router_svc", "label": "dispatch", "variant": "emphasis" },
+    { "from": "router_svc", "to": "rcu_engine", "label": "Hot (>=0.85)", "variant": "emphasis" },
+    { "from": "router_svc", "to": "drain_clustering", "label": "Cold (<0.85)", "variant": "default", "labelDy": 30 },
+    { "from": "drain_clustering", "to": "sqlite_db", "label": "quarantine", "variant": "default", "labelDy": 30 },
+    { "from": "sqlite_db", "to": "review_console", "label": "review queue", "variant": "default" },
+    { "from": "review_console", "to": "rcu_engine", "label": "Ed25519 pack", "variant": "security" },
+    { "from": "rcu_engine", "to": "normalizer_svc", "label": "active pack", "variant": "emphasis" },
+    { "from": "normalizer_svc", "to": "parquet_lake", "label": "OCSF Parquet", "variant": "emphasis" },
+    { "from": "normalizer_svc", "to": "siem_sink", "label": "CEF / JSONL", "variant": "emphasis", "labelDy": 30 },
+    { "from": "integrity_svc", "to": "raw_store", "label": "audit proof", "variant": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "ULPF Contracts & Schemas",
+      "items": [
+        "@ulpf/contracts enforces IngestEnvelope, RawIngestV1, and MerkleLeafV1 message formats across Node.js and Python",
+        "Target event taxonomy adheres strictly to OCSF v1.2.0 Class 4001 (Network Activity)",
+        "Mapping packs are declarative YAML specifications containing Drain regex tokens, target attributes, and Ed25519 signatures"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Resilience & Fault Tolerance",
+      "items": [
+        "Durable Disk Spool automatically diverts raw envelopes on database write lock without dropping network events",
+        "Dual-speed architecture prevents slow SIEM or Data Lake consumers from blocking ingress packet listeners",
+        "Optimistic concurrency control with 409 State Conflict handling guards against analyst collision during pack promotions"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Air-Gap & Verification Proofs",
+      "items": [
+        "100% offline air-gap safe: zero runtime CDN calls, self-hosted system typography, local offline vector embeddings",
+        "SHA-256 Merkle DAG anchors raw payloads to immutable storage pointers (raw_store://chunk_.../offset_N)",
+        "Automated regression suites: fidelity.test.ts, test_rcu_hot_reload.py, and tools/check_airgap.py verify end-to-end integrity"
+      ]
+    }
+  ]
+}

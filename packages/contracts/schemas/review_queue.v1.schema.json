@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ulpf.internal/schemas/review-queue.v1.json",
+  "title": "ReviewQueueV1",
+  "description": "Bus message: ulpf.review.queue.v1 — cold-path review item for analyst confirmation.",
+  "type": "object",
+  "required": [
+    "lineage_id",
+    "extraction_id",
+    "cluster_id",
+    "candidate_mapping",
+    "sample_raw_pointer"
+  ],
+  "properties": {
+    "review_id": {
+      "type": ["integer", "null"],
+      "description": "Null on initial publish; populated once persisted in the review_queue table."
+    },
+    "lineage_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "extraction_id": {
+      "type": "integer"
+    },
+    "cluster_id": {
+      "type": "string",
+      "pattern": "^drain-cluster-[0-9]+$",
+      "description": "Drain cluster ID, zero-padded integer suffix."
+    },
+    "candidate_mapping": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["candidate_ocsf_attribute", "similarity_score"],
+        "properties": {
+          "candidate_ocsf_attribute": {
+            "type": "string",
+            "description": "Dot-notation OCSF attribute path."
+          },
+          "similarity_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "alternate_candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["attribute", "similarity_score"],
+              "properties": {
+                "attribute": { "type": "string" },
+                "similarity_score": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Per-field candidate OCSF mapping with similarity scores."
+    },
+    "sample_raw_pointer": {
+      "type": "string",
+      "pattern": "^raw_store://",
+      "description": "URI to a representative raw sample."
+    }
+  },
+  "additionalProperties": false
+}

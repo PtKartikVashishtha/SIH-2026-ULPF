@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ulpf-pipeline-svc"
+version = "0.1.0"
+description = "ULPF C3/C4/C5/C6 — Router, hot/cold path, normalization, pack registry"
+requires-python = ">=3.11"
+dependencies = [
+    "ulpf-contracts",
+    "sqlalchemy>=2.0,<3",
+    "cryptography>=42.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.4,<1",
+    "mypy>=1.10,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pipeline_svc"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH", "ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN", "E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

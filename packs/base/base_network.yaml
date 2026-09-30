@@ -1,0 +1,16 @@
+pack_id: base_network_v1.0.0
+source_type: base_network
+version: 1.0.0
+description: Base pack defining standard network traffic signatures
+signatures:
+- name: generic_traffic
+  pattern: (?P<action>ALLOW|DENY|PERMIT|DROP)\s+(?P<protocol>TCP|UDP|ICMP)\s+src\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+):(?P<src_port>\d+)\s+dst\s+(?P<dst_ip>\d+\.\d+\.\d+\.\d+):(?P<dst_port>\d+)
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+signer_key_id: dev_signing
+signature: 8dc40fb99c1301914e442b9ea8db95dab685c7694d4fb75bef9653c16e32c0e031ce67ab8bde82cbe17eba5f313d9240270daf9a12665e4444dafae8a8f93101

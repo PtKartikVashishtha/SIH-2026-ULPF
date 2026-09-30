@@ -1,0 +1,28 @@
+{
+  "timestamp_utc": "2026-09-29T19:05:51Z",
+  "ingestion_seal": {
+    "throughput_eps": 390195.17688651866,
+    "p50_us": 2.2,
+    "p90_us": 2.5,
+    "p99_us": 4.5
+  },
+  "hotpath_router": {
+    "throughput_eps": 40300.22051932513,
+    "p50_us": 22.2,
+    "p90_us": 27.8,
+    "p99_us": 80.9
+  },
+  "normalization": {
+    "throughput_eps": 37775.24935373609,
+    "p50_us": 22.5,
+    "p90_us": 27.6,
+    "p99_us": 102.1
+  },
+  "merkle_tree": {
+    "trees_per_sec": 9182.668998001946,
+    "equivalent_eps": 918266.8998001947,
+    "p50_us": 101.7,
+    "p90_us": 124.1,
+    "p99_us": 244.9
+  }
+}

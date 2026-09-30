@@ -1,0 +1,31 @@
+{
+  "name": "ulpf-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ULPF monorepo root — use pnpm workspaces",
+  "scripts": {
+    "dev": "pnpm --filter @ulpf/review-ui dev",
+    "dev:all": "pnpm --filter \"./services/**\" --parallel dev",
+    "dev:ui": "pnpm --filter @ulpf/review-ui dev",
+    "dev:api": "pnpm --filter @ulpf/review-api dev",
+    "dev:ingest": "pnpm --filter @ulpf/ingestion-svc dev",
+    "start": "pnpm --filter @ulpf/review-ui start",
+    "build": "pnpm -r --filter @ulpf/contracts build",
+    "test": "pnpm -r test",
+    "test:py": "pytest",
+    "test:all": "pnpm -r test && pytest",
+    "ci": "pnpm -r test && pytest && pnpm -r --filter \"./packages/**\" --filter \"./services/**\" exec tsc --noEmit && ruff check packages/ services/ && mypy services/pipeline-svc/src services/sinks-svc/src",
+    "lint": "pnpm -r --filter \"./packages/**\" --filter \"./services/**\" exec tsc --noEmit && ruff check packages/ services/",
+    "typecheck": "pnpm -r --filter \"./packages/**\" --filter \"./services/**\" exec tsc --noEmit && mypy services/pipeline-svc/src services/sinks-svc/src",
+    "test:e2e": "pytest tests/e2e",
+    "benchmark": "python tools/benchmark.py",
+    "airgap:check": "python tools/check_airgap.py",
+    "verify:live": "python tools/verify_live.py"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  }
+}

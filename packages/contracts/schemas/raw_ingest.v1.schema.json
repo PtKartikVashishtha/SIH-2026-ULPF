@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ulpf.internal/schemas/raw-ingest.v1.json",
+  "title": "RawIngestV1",
+  "description": "Bus message: ulpf.raw.ingest.v1 — raw ingestion envelope published by ingestion-svc.",
+  "type": "object",
+  "required": [
+    "lineage_id",
+    "sha256_hash",
+    "ingestion_timestamp",
+    "source_ip",
+    "source_port",
+    "transport_protocol",
+    "char_encoding"
+  ],
+  "properties": {
+    "lineage_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv4, generated once at ingestion, never reused."
+    },
+    "raw_bytes_b64": {
+      "type": ["string", "null"],
+      "contentEncoding": "base64",
+      "description": "Base64-encoded raw bytes. Omitted (null) when payload exceeds bus.max_inline_bytes — use storage_pointer instead."
+    },
+    "storage_pointer": {
+      "type": "string",
+      "pattern": "^raw_store://",
+      "description": "URI to the raw store location: raw_store://chunk_<id>/offset_<n>"
+    },
+    "sha256_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Hex-encoded SHA-256 of the raw bytes."
+    },
+    "ingestion_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC with microsecond precision."
+    },
+    "source_ip": {
+      "type": "string",
+      "description": "Source IP address (IPv4 or IPv6)."
+    },
+    "source_port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "transport_protocol": {
+      "type": "string",
+      "enum": ["UDP", "TCP", "TLS", "HTTP"]
+    },
+    "char_encoding": {
+      "type": "string",
+      "description": "Detected character encoding. Metadata only — never used to transform stored bytes."
+    }
+  },
+  "additionalProperties": false
+}

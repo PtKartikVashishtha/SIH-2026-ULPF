@@ -1,0 +1,45 @@
+# Stage 1: Build Next.js app
+FROM node:20-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@9 --activate
+WORKDIR /app
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/contracts/typescript/package.json packages/contracts/typescript/
+COPY services/review-ui/package.json services/review-ui/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages/contracts/typescript packages/contracts/typescript
+COPY services/review-ui services/review-ui
+
+RUN pnpm --filter @ulpf/contracts build
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @ulpf/review-ui build
+
+# Stage 2: Hardened Minimal Runtime
+FROM node:20-alpine AS runner
+
+RUN apk add --no-cache curl && rm -rf /var/cache/apk/*
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV NEXT_TELEMETRY_DISABLED=1
+
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/services/review-ui/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/services/review-ui/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/services/review-ui/.next/static ./services/review-ui/.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -fsS http://localhost:3000 || exit 1
+
+CMD ["node", "services/review-ui/server.js"]

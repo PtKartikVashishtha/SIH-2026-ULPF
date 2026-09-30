@@ -1,0 +1,43 @@
+# Stage 1: Build wheels
+FROM python:3.13-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY packages/contracts/python /build/packages/contracts/python
+COPY services/sinks-svc /build/services/sinks-svc
+
+RUN pip install --no-cache-dir --upgrade pip build wheel
+RUN pip wheel --no-cache-dir --wheel-dir /wheels /build/packages/contracts/python
+RUN pip wheel --no-cache-dir --wheel-dir /wheels --find-links /wheels /build/services/sinks-svc
+
+# Stage 2: Hardened Runtime
+FROM python:3.13-slim AS runner
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN useradd -u 10001 -m -s /usr/sbin/nologin appuser
+RUN chmod 777 /app
+
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
+
+COPY --chown=appuser:appuser services/sinks-svc/src /app/src
+
+USER appuser
+ENV PYTHONPATH=/app/src
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8001
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" || exit 1
+
+CMD ["python", "-m", "sinks_svc"]

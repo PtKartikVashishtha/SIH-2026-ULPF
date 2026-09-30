@@ -1,0 +1,231 @@
+services:
+  volume-init:
+    image: ulpf-review-api:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.review-api
+      pull: false
+    restart: "no"
+    user: "0:0"
+    volumes:
+      - ulpf_data:/app/data
+    command: ["sh", "-c", "mkdir -p /app/data/raw_store /app/data/lake /app/data/sinks && chmod -R 777 /app/data"]
+    networks:
+      - ulpf-net
+
+  ingestion-svc:
+    image: ulpf-ingestion-svc:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ingestion
+      pull: false
+    container_name: ulpf-ingestion-svc
+    restart: unless-stopped
+    ports:
+      - "5140:5140/udp"
+      - "5141:5141/tcp"
+      - "5142:5142/tcp"
+    environment:
+      - PORT=5142
+      - SYSLOG_UDP_PORT=5140
+      - SYSLOG_TCP_PORT=5141
+      - DB_PATH=/app/data/ulpf.db
+      - RAW_STORE_DIR=/app/data/raw_store
+    volumes:
+      - ulpf_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5142/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    networks:
+      - ulpf-net
+
+  integrity-svc:
+    image: ulpf-integrity-svc:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.integrity
+      pull: false
+    container_name: ulpf-integrity-svc
+    restart: unless-stopped
+    ports:
+      - "5143:5143/tcp"
+    environment:
+      - PORT=5143
+      - DB_PATH=/app/data/ulpf.db
+      - LEDGER_PATH=/app/data/ledger.jsonl
+      - SIGNING_KEY_PATH=/app/keys/dev_signing.key
+    volumes:
+      - ulpf_data:/app/data
+      - ./keys:/app/keys:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5143/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    networks:
+      - ulpf-net
+
+  pipeline-svc:
+    image: ulpf-pipeline-svc:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pipeline
+      pull: false
+    container_name: ulpf-pipeline-svc
+    restart: unless-stopped
+    ports:
+      - "8000:8000/tcp"
+    environment:
+      - DB_PATH=/app/data/ulpf.db
+      - PACKS_DIR=/app/packs
+      - VERIFY_KEY_PATH=/app/keys/dev_signing.pub
+    volumes:
+      - ulpf_data:/app/data
+      - ./packs:/app/packs
+      - ./keys:/app/keys:ro
+      - ./services/pipeline-svc/src:/app/src
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    networks:
+      - ulpf-net
+
+  sinks-svc:
+    image: ulpf-sinks-svc:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sinks
+      pull: false
+    container_name: ulpf-sinks-svc
+    restart: unless-stopped
+    ports:
+      - "8001:8001/tcp"
+    environment:
+      - DATA_DIR=/app/data
+      - DB_PATH=/app/data/ulpf.db
+    volumes:
+      - ulpf_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    networks:
+      - ulpf-net
+
+  review-api:
+    image: ulpf-review-api:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.review-api
+      pull: false
+    container_name: ulpf-review-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000/tcp"
+    environment:
+      - PORT=4000
+      - DB_PATH=/app/data/ulpf.db
+      - PACKS_DIR=/app/packs
+      - SIGNING_KEY_PATH=/app/keys/dev_signing.key
+      - INGESTION_HTTP_URL=http://ingestion-svc:5142
+      - PIPELINE_HTTP_URL=http://pipeline-svc:8000
+    volumes:
+      - ulpf_data:/app/data
+      - ./packs:/app/packs
+      - ./keys:/app/keys:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    networks:
+      - ulpf-net
+
+  review-ui:
+    image: ulpf-review-ui:latest
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.review-ui
+      pull: false
+    container_name: ulpf-review-ui
+    restart: unless-stopped
+    ports:
+      - "3100:3000/tcp"
+    environment:
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_REVIEW_API_URL=http://localhost:4000
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      review-api:
+        condition: service_healthy
+    networks:
+      - ulpf-net
+
+networks:
+  ulpf-net:
+    driver: bridge
+
+volumes:
+  ulpf_data:

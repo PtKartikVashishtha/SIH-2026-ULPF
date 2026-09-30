@@ -1,0 +1,30 @@
+pack_id: cisco_asa_v1.3.0
+source_type: cisco_asa
+version: 1.3.0
+description: Cisco Adaptive Security Appliance (ASA) Firewall mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: asa_deny_106023
+  pattern: '%ASA-4-106023:\s+(?P<action>Deny|Permit)\s+(?P<protocol>\w+)\s+src\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)\s+dst\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)(\s+by\s+access-group\s+"(?P<acl_name>[^"]+)")?'
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_interface: $src_interface
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_interface: $dst_interface
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    acl_name: $acl_name
+- name: asa_teardown_302014
+  pattern: '%ASA-6-302014:\s+Teardown\s+(?P<protocol>\w+)\s+connection\s+(?P<conn_id>\d+)\s+for\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)\s+to\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)\s+duration\s+(?P<duration>[0-9:]+)\s+bytes\s+(?P<bytes>\d+)'
+  extracted_fields:
+    action: Teardown
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    bytes: $bytes
+signer_key_id: dev_signing
+signature: 85b26c4c2054f35eb01338448f9c0ef895dc90519bbc3bdd69103f6463f1ee1dc2f254d174bbdf74101092ac3a1450df4baef6937571ba093b5d6f74a55dbe0a

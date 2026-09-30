@@ -1,0 +1,62 @@
+# === Keys (production keys should never be committed) ===
+keys/*.pem
+!keys/dev_signing.key
+!keys/dev_signing.pub
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+
+# === Node / TypeScript ===
+node_modules/
+*.tsbuildinfo
+.next/
+out/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Local data stores (MVP) ===
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Misc ===
+*.log
+.env
+.env.local
+.env.*.local
+
+
+# === Evaluator, Walkthrough & Presentation Scripts ===
+docs/EVALUATOR_WALKTHROUGH_SCRIPT.md
+docs/*WALKTHROUGH*
+docs/*EVALUATOR*
+docs/*.visual-check.*

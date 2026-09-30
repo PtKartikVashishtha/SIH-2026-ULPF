@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ulpf.internal/schemas/extraction-envelope.json",
+  "title": "ExtractionEnvelope",
+  "description": "Common Intermediate Extraction Envelope — emitted by both hot and cold path. The contract that lets normalization treat both identically.",
+  "type": "object",
+  "required": [
+    "lineage_id",
+    "path_taken",
+    "source_type",
+    "extracted_fields",
+    "confidence_scores",
+    "parser_version"
+  ],
+  "properties": {
+    "lineage_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "path_taken": {
+      "type": "string",
+      "enum": ["HOT", "COLD"]
+    },
+    "source_type": {
+      "type": "string",
+      "description": "E.g. cisco_asa, unknown_v1"
+    },
+    "extracted_fields": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Key-value pairs of extracted field names to their string values."
+    },
+    "confidence_scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "description": "Per-field confidence scores. Hot-path scores are always 1.0."
+    },
+    "parser_version": {
+      "type": "string",
+      "description": "Semver of the parser/pack that produced this extraction."
+    }
+  },
+  "additionalProperties": false
+}

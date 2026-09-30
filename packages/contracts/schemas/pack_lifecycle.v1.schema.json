@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ulpf.internal/schemas/pack-lifecycle.v1.json",
+  "title": "PackLifecycleV1",
+  "description": "Bus message: ulpf.pack.lifecycle.v1 — emitted on pack state transitions.",
+  "type": "object",
+  "required": [
+    "pack_id",
+    "event_type",
+    "actor",
+    "event_hash",
+    "occurred_at"
+  ],
+  "properties": {
+    "pack_id": {
+      "type": "string",
+      "description": "E.g. cisco_asa_v1.3.0"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "pack_created",
+        "pack_confirmed",
+        "pack_updated",
+        "pack_rolled_back",
+        "pack_quarantined"
+      ]
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identity of the actor. Never anonymous — e.g. analyst:jdoe, system:auto-onboarding"
+    },
+    "event_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hash of the event, anchored on-chain."
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC."
+    }
+  },
+  "additionalProperties": false
+}

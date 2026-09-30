@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ulpf.internal/schemas/ocsf-event.v1.json",
+  "title": "OcsfNetworkActivityV1",
+  "description": "Bus message: ulpf.ocsf.events.v1 — OCSF Class 4001 (Network Activity) with ULPF extensions.",
+  "type": "object",
+  "required": [
+    "activity_id",
+    "activity_name",
+    "category_uid",
+    "class_uid",
+    "class_name",
+    "severity_id",
+    "time",
+    "src_endpoint",
+    "dst_endpoint",
+    "metadata",
+    "_lineage_id"
+  ],
+  "properties": {
+    "activity_id": {
+      "type": "integer",
+      "description": "OCSF activity ID."
+    },
+    "activity_name": {
+      "type": "string",
+      "description": "Human-readable activity name."
+    },
+    "category_uid": {
+      "type": "integer",
+      "const": 4,
+      "description": "OCSF category: Network Activity."
+    },
+    "class_uid": {
+      "type": "integer",
+      "const": 4001,
+      "description": "OCSF class: Network Activity."
+    },
+    "class_name": {
+      "type": "string",
+      "const": "Network Activity"
+    },
+    "severity_id": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6,
+      "description": "OCSF severity (0=Unknown to 6=Fatal)."
+    },
+    "time": {
+      "type": "integer",
+      "description": "Event timestamp as epoch milliseconds. Required by OCSF."
+    },
+    "src_endpoint": {
+      "$ref": "#/$defs/Endpoint"
+    },
+    "dst_endpoint": {
+      "$ref": "#/$defs/Endpoint"
+    },
+    "connection_info": {
+      "type": "object",
+      "properties": {
+        "protocol_num": { "type": "integer" },
+        "protocol_name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["version", "uid", "product"],
+      "properties": {
+        "version": { "type": "string" },
+        "uid": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Must always equal _lineage_id."
+        },
+        "product": {
+          "type": "object",
+          "required": ["vendor_name", "name"],
+          "properties": {
+            "vendor_name": { "type": "string" },
+            "name": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "raw_data": {
+      "type": "string",
+      "pattern": "^raw_store://",
+      "description": "URI to the raw store location."
+    },
+    "_confidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "description": "ULPF extension: per-field confidence scores."
+    },
+    "_lineage_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ULPF extension: lineage ID. Always identical to metadata.uid."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Endpoint": {
+      "type": "object",
+      "properties": {
+        "ip": { "type": "string" },
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "hostname": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

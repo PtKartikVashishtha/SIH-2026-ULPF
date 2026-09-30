@@ -1,0 +1,25 @@
+{
+  "name": "@ulpf/contracts",
+  "version": "0.1.0",
+  "description": "ULPF shared contracts — TypeScript types generated from JSON Schema",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "generate": "node scripts/generate.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "ajv": "^8.16.0",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^9.5.0",
+    "json-schema-to-typescript": "^15.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
