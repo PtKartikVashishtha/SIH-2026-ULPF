@@ -3,6 +3,7 @@ import http.server
 import json
 import os
 import sys
+
 from sinks_svc.service import SinksService
 
 PORT = int(os.environ.get("PORT", "8001"))

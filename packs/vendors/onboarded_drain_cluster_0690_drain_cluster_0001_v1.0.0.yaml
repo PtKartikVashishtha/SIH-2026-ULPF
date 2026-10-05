@@ -1,0 +1,23 @@
+pack_id: onboarded_drain_cluster_0690_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_drain_cluster_0690
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_drain_cluster_0690_drain_cluster_0001
+  pattern: .*?TTY="?(?P<tty>[^"\s]+(?:\s+[^"\s]+)*)"?.*?PWD="?(?P<pwd>[^"\s]+(?:\s+[^"\s]+)*)"?.*?USER="?(?P<user>[^"\s]+(?:\s+[^"\s]+)*)"?.*?COMMAND="?(?P<command>[^"\s]+(?:\s+[^"\s]+)*)"?.*
+  extracted_fields:
+    var_1: $var_1
+    var_2: $var_2
+    var_3: $var_3
+    var_4: $var_4
+    TTY: $TTY
+    PWD: $PWD
+    USER: $USER
+    COMMAND: $COMMAND
+    var_9: $var_9
+    tty: $tty
+    pwd: $pwd
+    user: $user
+    command: $command
+signer_key_id: dev_signing
+signature: 5eb6a4feeed3e01c907201f1bdf905947e7c220c21c1a9450b8eaaee3a27e4a25ff0d33bea5ea27e1312269adb73c3627ebd8da8ac8f989671df01f0266dae0c

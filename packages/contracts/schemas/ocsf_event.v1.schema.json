@@ -104,6 +104,10 @@
       "type": "string",
       "format": "uuid",
       "description": "ULPF extension: lineage ID. Always identical to metadata.uid."
+    },
+    "unmapped": {
+      "type": "object",
+      "description": "Vendor-specific unmapped attributes preserving complete raw fidelity."
     }
   },
   "additionalProperties": false,

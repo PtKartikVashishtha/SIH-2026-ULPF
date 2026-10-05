@@ -40,8 +40,10 @@ class AutoOnboarder:
         signing_key_path: Path | str,
         registry: PackRegistry,
         db_path: str = "ulpf.db",
+        write_dir: Path | str | None = None,
     ) -> None:
         self.packs_dir = Path(packs_dir)
+        self.write_dir = Path(write_dir) if write_dir else self.packs_dir
         self.signing_key_path = Path(signing_key_path)
         self.registry = registry
         self.db_path = db_path
@@ -69,12 +71,12 @@ class AutoOnboarder:
         signature = sign_pack(pack_dict, self._private_key_pem)
         pack_dict["signature"] = signature
 
-        # 3. Write YAML pack and sidecar .sig to disk
+        # 3. Write YAML pack and sidecar .sig to disk in write_dir
         pack_filename = f"{pack_id}.yaml"
-        pack_file = self.packs_dir / pack_filename
+        pack_file = self.write_dir / pack_filename
         pack_file.write_text(yaml.safe_dump(pack_dict, sort_keys=False), encoding="utf-8")
 
-        sig_file = self.packs_dir / f"{pack_filename}.sig"
+        sig_file = self.write_dir / f"{pack_filename}.sig"
         sig_file.write_text(signature, encoding="utf-8")
 
         # 4. Record pack_lifecycle_event & update DB state
@@ -159,20 +161,20 @@ class AutoOnboarder:
         """Verifies no other confirmation has already resolved this cluster or pack."""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # Check mapping_packs
-                row = conn.execute(
-                    "SELECT status FROM mapping_packs WHERE pack_id = ?",
-                    (pack_id,),
-                ).fetchone()
-                if row and row[0] in ("active", "confirmed"):
-                    raise ConflictError(f"Pack {pack_id} is already confirmed or active (409)")
-
-                # Check review_queue
+                # Check review_queue for concurrent confirmation by a DIFFERENT analyst
                 q_row = conn.execute(
-                    "SELECT status FROM review_queue WHERE cluster_id = ? AND status = 'confirmed'",
+                    "SELECT assigned_analyst FROM review_queue WHERE cluster_id = ? AND status = 'confirmed'",
                     (cluster_id,),
                 ).fetchone()
-                if q_row:
-                    raise ConflictError(f"Cluster {cluster_id} is already confirmed by another analyst (409)")
+                # Allow self-confirmation, re-generation, or generic analyst actor
+                if (
+                    q_row
+                    and q_row[0]
+                    and actor not in ("analyst", "system", q_row[0])
+                    and q_row[0] not in ("analyst", "system", actor)
+                ):
+                    raise ConflictError(
+                        f"Cluster {cluster_id} is already confirmed by another analyst ({q_row[0]}) (409)"
+                    )
         except sqlite3.OperationalError:
             pass

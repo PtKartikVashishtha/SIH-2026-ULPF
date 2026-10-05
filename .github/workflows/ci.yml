@@ -1,0 +1,84 @@
+name: ULPF Production CI & Security Verification
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-audit:
+    name: Python Quality, Types & Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "packages/contracts/python[dev]"
+          pip install ruff mypy pytest zstandard pandas pyarrow scikit-learn pyyaml cryptography typeguard anyio
+
+      - name: Run Ruff Linter
+        run: |
+          ruff check packages/contracts/python services/pipeline-svc services/sinks-svc
+
+      - name: Run Mypy Typecheck
+        run: |
+          mypy packages/contracts/python/ulpf_contracts
+
+      - name: Run Full Test Suite (Unit, Integration & Security Red-Team)
+        run: |
+          pytest -v
+
+      - name: Verify Air-Gap Isolation
+        run: |
+          python tools/check_airgap.py
+
+      - name: Run Evaluator 10-Stage Demonstration Drill
+        run: |
+          python demo.py
+
+  typescript-audit:
+    name: TypeScript Build, Types & Acceptance Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node Dependencies
+        run: |
+          pnpm install --frozen-lockfile
+
+      - name: Build Shared Contracts
+        run: |
+          pnpm --filter @ulpf/contracts build
+
+      - name: TypeScript Typecheck (Zero Errors)
+        run: |
+          pnpm -r exec tsc --noEmit
+
+      - name: Run Vitest Acceptance Tests
+        run: |
+          pnpm -r test

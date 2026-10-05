@@ -1,0 +1,17 @@
+pack_id: onboarded_drain_cluster_0691_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_drain_cluster_0691
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_drain_cluster_0691_drain_cluster_0001
+  pattern: .*?Timestamp="?(?P<time>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*?Client_IP="?(?P<client_ip>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*?Method="?(?P<method>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*?Endpoint="?(?P<endpoint>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*?Status_Code="?(?P<status_code>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*?Response_Size_Bytes="?(?P<response_size_bytes>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*?User_Agent="?(?P<user_agent>[^"\'`,\s;]+(?:\s+[^"\'`,\s;]+)*)"?.*
+  extracted_fields:
+    time: time
+    client_ip: src_endpoint.ip
+    method: http_request.http_method
+    endpoint: http_request.url.path
+    status_code: action
+    response_size_bytes: traffic.bytes_out
+    user_agent: http_request.user_agent
+signer_key_id: dev_signing
+signature: 37a0272603a1a533d91171af99e6868cac3509c2881792adcdfeddc1b8eb0246dca58d1344f318a721c695869ea3077c995d4ad18a56db9f8e43de55f9c31e03

@@ -232,7 +232,22 @@ def main() -> None:
     parser.add_argument("--lineage-ids", nargs="*", help="List of lineage IDs to process")
     parser.add_argument("--lineage-file", help="Path to JSON file containing lineage IDs to process")
     parser.add_argument("--db-path", default="ulpf.db", help="Path to ulpf.db")
+    parser.add_argument("--onboard-cluster", help="Cluster ID to onboard and generate signed pack for")
+    parser.add_argument("--actor", default="analyst", help="Analyst actor name")
+    parser.add_argument("--mapping-json", help="JSON string of confirmed mapping")
     args = parser.parse_args()
+
+    if args.onboard_cluster:
+        from pipeline_svc.worker import onboard_cluster
+        mapping = json.loads(args.mapping_json) if args.mapping_json else None
+        res = onboard_cluster(
+            cluster_id=args.onboard_cluster,
+            actor=args.actor,
+            confirmed_mapping=mapping,
+            db_path=args.db_path,
+        )
+        print(json.dumps(res))
+        return
 
     res = process_events(
         lineage_ids=args.lineage_ids,

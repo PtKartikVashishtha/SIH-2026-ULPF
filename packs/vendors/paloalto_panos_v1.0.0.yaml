@@ -1,0 +1,26 @@
+pack_id: paloalto_panos_v1.0.0
+source_type: paloalto_panos
+version: 1.0.0
+description: Palo Alto Networks PAN-OS Firewall Traffic & Threat CSV mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: panos_traffic_csv
+  pattern: ^(?:[^,]*,){6}(?P<time_generated>[^,]*),(?P<src_ip>\d+\.\d+\.\d+\.\d+),(?P<dst_ip>\d+\.\d+\.\d+\.\d+),(?:[^,]*,){15}(?P<src_port>\d+),(?P<dst_port>\d+),(?:[^,]*,){3}(?P<protocol>\w+),(?P<action>allow|deny|drop|reset-client|reset-server|reset-both)
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+- name: panos_syslog_kv
+  pattern: traffic,.*?(?P<src_ip>\d+\.\d+\.\d+\.\d+):(?P<src_port>\d+)\s+->\s+(?P<dst_ip>\d+\.\d+\.\d+\.\d+):(?P<dst_port>\d+)\s+proto=(?P<protocol>\w+)\s+action=(?P<action>allow|deny|drop)
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+signer_key_id: dev_signing
+signature: 9dba6fb5cccc61eb6d6b27444aa03048d058bad140e25f32b562623e02efe6a071b1f4999f022a0d9b800a08a5ff4716f1365e3512ade235fc15b03bc371220a

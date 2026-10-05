@@ -1,0 +1,18 @@
+pack_id: juniper_srx_v1.0.0
+source_type: juniper_srx
+version: 1.0.0
+description: Juniper Networks SRX Series Flow session mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: juniper_srx_flow_session
+  pattern: RT_FLOW:\s+(?P<event_type>RT_FLOW_SESSION_\w+):\s+session\s+(?P<action>\w+)\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)->(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)\s+.*?(?:protocol-id\s+|\S+/\S+\s+)(?P<protocol>\d+|\w+)
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    event_type: $event_type
+signer_key_id: dev_signing
+signature: 0fde8046924715a5f060f8a28581c0979cfa0c413648f3a0865dafdbe1baf6ed18bc43ef9c762bd8b0e14dcbded93348d2cd84e31c5041d9db430d8ce6df0109

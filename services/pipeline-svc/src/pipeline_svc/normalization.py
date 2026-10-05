@@ -27,11 +27,18 @@ PROTO_MAP: dict[str, tuple[int, str]] = {
 
 ACTIVITY_MAP: dict[str, tuple[int, str]] = {
     "allow": (1, "Open"),
+    "allowed": (1, "Open"),
     "permit": (1, "Open"),
     "permitted": (1, "Open"),
+    "pass": (1, "Open"),
+    "passed": (1, "Open"),
     "accept": (1, "Open"),
     "accepted": (1, "Open"),
     "open": (1, "Open"),
+    "create": (1, "Open"),
+    "created": (1, "Open"),
+    "build": (1, "Open"),
+    "built": (1, "Open"),
     "close": (2, "Close"),
     "teardown": (2, "Close"),
     "end": (2, "Close"),
@@ -123,7 +130,7 @@ def canonicalize_timestamp(ts_val: int | float | str | None) -> int:
             return int(val)
         return int(val / 1000)  # microseconds or nanoseconds
 
-    ts_str = str(ts_val).strip()
+    ts_str = ts_val.strip()
     if not ts_str:
         raise ValueError("Empty timestamp string")
 
@@ -194,8 +201,20 @@ def canonicalize_protocol(proto: str | None) -> tuple[int, str]:
 
 VENDOR_PRODUCT_MAP: dict[str, tuple[str, str]] = {
     "cisco_asa": ("Cisco", "ASA Firewall"),
+    "fortinet_fortigate": ("Fortinet", "FortiGate Firewall"),
+    "paloalto_panos": ("Palo Alto Networks", "PAN-OS Next-Gen Firewall"),
     "palo_alto_fw": ("Palo Alto Networks", "PAN-OS Firewall"),
-    "fortinet_fortigate": ("Fortinet", "FortiGate"),
+    "checkpoint_fw": ("Check Point", "Quantum Security Gateway"),
+    "juniper_srx": ("Juniper Networks", "SRX Series Services Gateway"),
+    "suricata_ids": ("OISF", "Suricata Network Threat Detection Engine"),
+    "snort_ids": ("Cisco", "Snort Network Intrusion Detection System"),
+    "zeek_conn": ("Zeek Project", "Zeek Network Security Monitor"),
+    "linux_iptables": ("Netfilter", "Linux Kernel Packet Filter (iptables/UFW)"),
+    "cef_perimeter": ("ArcSight", "Common Event Format (CEF) Perimeter Gateway"),
+    "leef_perimeter": ("IBM", "Log Event Extended Format (LEEF) Perimeter Gateway"),
+    "syslog_rfc5424": ("IETF", "RFC5424 Structured Perimeter Appliance"),
+    "sophos_xg": ("Sophos", "XG Next-Gen Firewall"),
+    "keyvalue_perimeter": ("Generic", "Key-Value Perimeter Device"),
     "nginx_access": ("F5 NGINX", "NGINX Web Server"),
     "windows_event": ("Microsoft", "Windows Event Log"),
 }
@@ -219,14 +238,61 @@ def crosswalk_to_ocsf_dict(
     errors: list[str] = []
 
     # 1. Endpoints
-    src_ip = canonicalize_ip(fields.get("src_ip") or fields.get("src") or fields.get("source_ip"))
-    src_port = canonicalize_port(fields.get("src_port") or fields.get("sport"))
-    dst_ip = canonicalize_ip(fields.get("dst_ip") or fields.get("dst") or fields.get("dest_ip"))
-    dst_port = canonicalize_port(fields.get("dst_port") or fields.get("dport"))
+    src_ip = canonicalize_ip(
+        fields.get("src_ip")
+        or fields.get("src")
+        or fields.get("source_ip")
+        or fields.get("saddr")
+        or fields.get("client_ip")
+    )
+    src_port = canonicalize_port(
+        fields.get("src_port") or fields.get("sport") or fields.get("source_port")
+    )
+    dst_ip = canonicalize_ip(
+        fields.get("dst_ip")
+        or fields.get("dst")
+        or fields.get("dest_ip")
+        or fields.get("daddr")
+        or fields.get("server_ip")
+    )
+    dst_port = canonicalize_port(
+        fields.get("dst_port") or fields.get("dport") or fields.get("dest_port")
+    )
+
+    # Heuristic discovery fallback: If endpoints are missing, scan extracted fields
+    if src_ip is None or dst_ip is None:
+        discovered_eps: list[tuple[str, int | None]] = []
+        for _k, v in fields.items():
+            if not isinstance(v, str):
+                continue
+            clean_v = v.strip().strip("\"'")
+            m_comp = re.search(r"(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[:/(](?P<port>\d{1,5})", clean_v)
+            if m_comp:
+                cip = canonicalize_ip(m_comp.group("ip"))
+                if cip:
+                    cport = canonicalize_port(m_comp.group("port"))
+                    discovered_eps.append((cip, cport))
+                    continue
+            m_ip = re.search(r"\b(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b", clean_v)
+            if m_ip:
+                cip = canonicalize_ip(m_ip.group("ip"))
+                if cip:
+                    discovered_eps.append((cip, None))
+
+        if src_ip is None and len(discovered_eps) >= 1:
+            src_ip, sp = discovered_eps[0]
+            if src_port is None and sp is not None:
+                src_port = sp
+        if dst_ip is None and len(discovered_eps) >= 2:
+            dst_ip, dp = discovered_eps[1]
+            if dst_port is None and dp is not None:
+                dst_port = dp
 
     src_endpoint: dict[str, Any] = {}
     if src_ip is not None:
         src_endpoint["ip"] = src_ip
+    else:
+        src_endpoint["ip"] = "0.0.0.0"
     if src_port is not None:
         src_endpoint["port"] = src_port
     if "src_host" in fields:
@@ -235,13 +301,20 @@ def crosswalk_to_ocsf_dict(
     dst_endpoint: dict[str, Any] = {}
     if dst_ip is not None:
         dst_endpoint["ip"] = dst_ip
+    else:
+        dst_endpoint["ip"] = "0.0.0.0"
     if dst_port is not None:
         dst_endpoint["port"] = dst_port
     if "dst_host" in fields:
         dst_endpoint["hostname"] = fields["dst_host"]
 
     # 2. Connection Info
-    proto_str = fields.get("protocol") or fields.get("proto")
+    proto_str = fields.get("protocol") or fields.get("proto") or fields.get("transport")
+    if not proto_str:
+        for _k, v in fields.items():
+            if isinstance(v, str) and v.strip().lower() in ("tcp", "udp", "icmp", "gre", "esp", "ip"):
+                proto_str = v.strip().lower()
+                break
     proto_num, proto_name = canonicalize_protocol(proto_str)
     connection_info: dict[str, Any] = {
         "protocol_num": proto_num,
@@ -249,7 +322,16 @@ def crosswalk_to_ocsf_dict(
     }
 
     # 3. Activity & Severity
-    act_id, act_name = canonicalize_activity(fields.get("action") or fields.get("disposition"))
+    action_val = fields.get("action") or fields.get("disposition") or fields.get("act")
+    if not action_val:
+        for _k, v in fields.items():
+            if isinstance(v, str) and v.strip().lower() in (
+                "deny", "denied", "drop", "dropped", "block", "blocked",
+                "permit", "permitted", "allow", "allowed", "built", "teardown", "accept", "refuse",
+            ):
+                action_val = v.strip().lower()
+                break
+    act_id, act_name = canonicalize_activity(action_val)
     if act_id == 5:  # Refuse / Deny
         severity_id = 4
     elif act_id == 1:  # Open / Allow
@@ -283,6 +365,16 @@ def crosswalk_to_ocsf_dict(
         for k, v in envelope.confidence_scores.items():
             conf_dict[k] = float(v)
 
+    # 7. Unmapped / Vendor-specific attributes (100% Lossless Preservation)
+    standard_keys = {
+        "src_ip", "src", "source_ip", "src_port", "sport", "source_port", "src_host",
+        "dst_ip", "dst", "dest_ip", "dst_port", "dport", "dest_port", "dst_host",
+        "proto", "protocol", "action", "disposition", "timestamp", "time", "datetime",
+    }
+    unmapped: dict[str, Any] = {
+        k: v for k, v in fields.items() if k not in standard_keys
+    }
+
     raw_ptr = raw_data_ptr or "raw_store://chunk_unknown/offset_0"
 
     event_dict: dict[str, Any] = {
@@ -301,6 +393,8 @@ def crosswalk_to_ocsf_dict(
         "_confidence": conf_dict,
         "_lineage_id": uid_str,
     }
+    if unmapped:
+        event_dict["unmapped"] = unmapped
 
     return event_dict, errors
 

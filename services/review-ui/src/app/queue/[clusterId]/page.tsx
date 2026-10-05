@@ -69,7 +69,7 @@ export default function ClusterDetailPage() {
       const res = await fetch(`${API}/queue/clusters/${clusterId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actor, overrides: fieldMappings }),
+        body: JSON.stringify({ actor, confirmed_mapping: fieldMappings, overrides: fieldMappings }),
       });
       if (res.status === 409) {
         setConflict409(true);
@@ -147,35 +147,72 @@ export default function ClusterDetailPage() {
     lineage_id: sample.lineage_id || "d8134282-60a6-4f03-855f-48163e6d9ed8",
     class_uid: 4001,
     class_name: "Network Activity",
-    activity_id: 5,
-    activity_name: "Refuse",
-    severity_id: 4,
+    activity_id: 6,
+    activity_name: "Traffic",
+    severity_id: 1,
     metadata: {
       version: "1.2.0",
       uid: sample.lineage_id || "d8134282-60a6-4f03-855f-48163e6d9ed8",
-      product: { name: "ULPF Onboarded Parser", vendor_name: data?.source_type || "cisco_asa" },
+      product: { name: "ULPF Onboarded Parser", vendor_name: (data?.source_type && data?.source_type !== "cold_path_unmapped") ? data.source_type : "Universal Perimeter" },
     },
     raw_pointer: data?.sample_raw_pointer || "raw_store://chunk_20260927_198/offset_0",
   };
 
   Object.entries(fieldMappings).forEach(([k, targetAttr]) => {
-    const val = extracted[k] || "token_val";
+    if (targetAttr === "unmapped") return;
+    const rawVal = extracted[k];
+    if (rawVal === undefined || rawVal === null) return;
+    const cleanVal = String(rawVal).replace(/^[\s"'\\/]+|[\s"'\\/]+$/g, "").trim();
+    if (!cleanVal) return;
+
     if (targetAttr === "src_endpoint.ip") {
-      dryRunJson.src_endpoint = { ...(dryRunJson.src_endpoint || {}), ip: val };
+      dryRunJson.src_endpoint = { ...(dryRunJson.src_endpoint || {}), ip: cleanVal };
     } else if (targetAttr === "src_endpoint.port") {
-      dryRunJson.src_endpoint = { ...(dryRunJson.src_endpoint || {}), port: isNaN(Number(val)) ? 49823 : Number(val) };
+      const p = parseInt(cleanVal, 10);
+      if (!isNaN(p) && p > 0 && p <= 65535) dryRunJson.src_endpoint = { ...(dryRunJson.src_endpoint || {}), port: p };
     } else if (targetAttr === "dst_endpoint.ip") {
-      dryRunJson.dst_endpoint = { ...(dryRunJson.dst_endpoint || {}), ip: val };
+      dryRunJson.dst_endpoint = { ...(dryRunJson.dst_endpoint || {}), ip: cleanVal };
     } else if (targetAttr === "dst_endpoint.port") {
-      dryRunJson.dst_endpoint = { ...(dryRunJson.dst_endpoint || {}), port: isNaN(Number(val)) ? 443 : Number(val) };
+      const p = parseInt(cleanVal, 10);
+      if (!isNaN(p) && p > 0 && p <= 65535) dryRunJson.dst_endpoint = { ...(dryRunJson.dst_endpoint || {}), port: p };
     } else if (targetAttr === "connection_info.protocol_name") {
-      dryRunJson.connection_info = { ...(dryRunJson.connection_info || {}), protocol_name: val, protocol_num: 6 };
+      const pLower = cleanVal.toLowerCase();
+      dryRunJson.connection_info = {
+        ...(dryRunJson.connection_info || {}),
+        protocol_name: pLower.toUpperCase(),
+        protocol_num: pLower === "tcp" ? 6 : pLower === "udp" ? 17 : pLower === "icmp" ? 1 : 99,
+      };
+    } else if (targetAttr === "action") {
+      const actLower = cleanVal.toLowerCase();
+      if (["deny", "denied", "drop", "dropped", "block", "blocked", "refuse", "reject"].some(w => actLower.includes(w))) {
+        dryRunJson.activity_id = 2; // Refuse
+        dryRunJson.activity_name = "Refuse";
+        dryRunJson.severity_id = 4;
+      } else if (["permit", "permitted", "allow", "allowed", "built", "open", "accept", "pass"].some(w => actLower.includes(w))) {
+        dryRunJson.activity_id = 1; // Open
+        dryRunJson.activity_name = "Open";
+        dryRunJson.severity_id = 1;
+      } else if (["teardown", "close", "disconnected", "end"].some(w => actLower.includes(w))) {
+        dryRunJson.activity_id = 3; // Close
+        dryRunJson.activity_name = "Close";
+        dryRunJson.severity_id = 1;
+      }
     } else if (targetAttr === "security_control.rule_name") {
-      dryRunJson.security_control = { rule_name: val };
+      dryRunJson.security_control = { rule_name: cleanVal };
     } else if (targetAttr === "http_request.user_agent") {
-      dryRunJson.http_request = { user_agent: val };
+      if (/mozilla|gecko|webkit|chrome|safari|curl|wget|python|httpclient|postman/i.test(cleanVal)) {
+        dryRunJson.http_request = { user_agent: cleanVal };
+      }
     }
   });
+
+  // Source endpoint fallback from sample if not extracted from text
+  if (!dryRunJson.src_endpoint?.ip && sample.source_ip) {
+    dryRunJson.src_endpoint = { ...(dryRunJson.src_endpoint || {}), ip: sample.source_ip };
+  }
+  if (!dryRunJson.src_endpoint?.port && sample.source_port) {
+    dryRunJson.src_endpoint = { ...(dryRunJson.src_endpoint || {}), port: sample.source_port };
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingBottom: 84 }}>

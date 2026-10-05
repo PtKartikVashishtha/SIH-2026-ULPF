@@ -70,13 +70,21 @@ OCSF_VOCABULARY: dict[str, list[str]] = {
 
 RE_PORT = re.compile(r"^\d{1,5}$")
 KNOWN_PROTOCOLS = {"tcp", "udp", "icmp", "ip", "gre", "esp", "ah", "sctp"}
-KNOWN_ACTIONS = {"deny", "permit", "drop", "allow", "block", "reject", "pass", "refuse"}
+KNOWN_ACTIONS = {
+    "deny", "permit", "drop", "allow", "block", "reject", "pass", "refuse",
+    "denied", "permitted", "dropped", "allowed", "blocked", "rejected", "passed", "refused",
+    "accept", "accepted", "built", "teardown", "close", "closed", "reset", "failed",
+}
 KNOWN_HTTP_METHODS = {"get", "post", "put", "delete", "patch", "head", "options"}
+RE_USER_AGENT_HINT = re.compile(
+    r"(mozilla|gecko|webkit|chrome|safari|firefox|edge|opera|curl|wget|python|httpclient|postman|go-http|compatible;)",
+    re.I,
+)
 
 
 def check_type_compatibility(attr: str, value: str) -> float:
     """Evaluates whether an extracted raw value matches expected semantic type."""
-    val = value.strip().strip("\"'").lower()
+    val = value.strip().strip("\"'\\").lower()
 
     if attr in ("src_endpoint.ip", "dst_endpoint.ip"):
         try:
@@ -95,7 +103,7 @@ def check_type_compatibility(attr: str, value: str) -> float:
         return 1.0 if val in KNOWN_PROTOCOLS else 0.0
 
     if attr == "action":
-        return 1.0 if val in KNOWN_ACTIONS else 0.0
+        return 1.0 if any(a in val for a in KNOWN_ACTIONS) else 0.0
 
     if attr == "http_request.http_method":
         return 1.0 if val in KNOWN_HTTP_METHODS else 0.0
@@ -109,7 +117,10 @@ def check_type_compatibility(attr: str, value: str) -> float:
     if attr == "http_request.url.path":
         return 1.0 if val.startswith("/") else 0.0
 
-    return 0.5
+    if attr == "http_request.user_agent":
+        return 1.0 if RE_USER_AGENT_HINT.search(val) else 0.0
+
+    return 0.05
 
 
 class SemanticMapper:
@@ -119,14 +130,16 @@ class SemanticMapper:
         self.attributes = list(OCSF_VOCABULARY.keys())
         self.doc_corpus = [" ".join(OCSF_VOCABULARY[attr]) for attr in self.attributes]
 
+        self.vectorizer: Any | None = None
+        self.tfidf_matrix: Any | None = None
+
         if HAS_SKLEARN and TfidfVectorizer is not None:
             # Initialize TF-IDF vectorizer over character n-grams (3-5) and word n-grams
             self.vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5))
             self.tfidf_matrix = self.vectorizer.fit_transform(self.doc_corpus)
         else:
-            self.vectorizer = None
-            self.tfidf_matrix = None
             self._init_pure_python_tfidf()
+        self._sim_cache: dict[str, dict[str, float]] = {}
 
     def _get_char_wb_ngrams(self, text: str, min_n: int = 3, max_n: int = 5) -> list[str]:
         words = text.lower().replace("_", " ").split()
@@ -157,10 +170,16 @@ class SemanticMapper:
 
     def compute_lexical_similarity(self, query: str) -> dict[str, float]:
         """Calculates cosine similarity between a token key and all target OCSF attributes."""
+        q_norm_key = query.strip().lower()
+        if q_norm_key in self._sim_cache:
+            return self._sim_cache[q_norm_key]
+
         if HAS_SKLEARN and self.vectorizer is not None and cosine_similarity is not None:
             q_vec = self.vectorizer.transform([query.lower().replace("_", " ")])
             sims = cosine_similarity(q_vec, self.tfidf_matrix)[0]
-            return {attr: float(sims[i]) for i, attr in enumerate(self.attributes)}
+            res = {attr: float(sims[i]) for i, attr in enumerate(self.attributes)}
+            self._sim_cache[q_norm_key] = res
+            return res
 
         q_ng = self._get_char_wb_ngrams(query)
         q_tf = Counter(q_ng)
@@ -170,6 +189,7 @@ class SemanticMapper:
         for i, attr in enumerate(self.attributes):
             dot = sum(v * self._doc_vecs[i].get(g, 0.0) for g, v in q_vec.items())
             results[attr] = round(dot / (q_norm * self._doc_norms[i]), 4)
+        self._sim_cache[q_norm_key] = results
         return results
 
     def map_field(
@@ -182,14 +202,53 @@ class SemanticMapper:
         Returns: (best_attribute, composite_confidence, alternate_candidates)
         """
         lexical_sims = self.compute_lexical_similarity(raw_key)
+        k_lower = raw_key.lower().replace("_", " ")
 
         scored_candidates: list[tuple[str, float, float, float]] = []
         for attr in self.attributes:
             lex_score = lexical_sims[attr]
             type_score = check_type_compatibility(attr, raw_value)
 
-            # Composite confidence: 0.6 lexical + 0.4 type compatibility
-            composite = 0.6 * lex_score + 0.4 * type_score
+            # Base composite: 0.55 lexical + 0.45 type compatibility
+            composite = 0.55 * lex_score + 0.45 * type_score
+
+            # Directional priors
+            if any(term in k_lower for term in ("src", "source", "from", "saddr", "client")):
+                if attr.startswith("src_"):
+                    composite += 0.35
+                elif attr.startswith("dst_"):
+                    composite -= 0.40
+            elif any(term in k_lower for term in ("dst", "dest", "destination", "to", "daddr", "server")):
+                if attr.startswith("dst_"):
+                    composite += 0.35
+                elif attr.startswith("src_"):
+                    composite -= 0.40
+
+            # Syntactic entity priors (IP vs Port)
+            if any(term in k_lower for term in ("port", "spt", "dport", "sport")):
+                if attr.endswith(".port"):
+                    composite += 0.35
+                elif attr.endswith(".ip"):
+                    composite -= 0.40
+            elif any(term in k_lower for term in ("ip", "addr", "host")):
+                if attr.endswith(".ip"):
+                    composite += 0.35
+                elif attr.endswith(".port"):
+                    composite -= 0.40
+
+            # Protocol / Action direct value matches
+            clean_val = raw_value.strip().strip("\"'\\").lower()
+            if attr == "connection_info.protocol_name" and clean_val in KNOWN_PROTOCOLS:
+                composite = max(composite, 0.98)
+            elif attr == "action" and (
+                clean_val in KNOWN_ACTIONS or any(t in k_lower for t in ("action", "subtype", "status"))
+            ):
+                composite = max(composite, 0.95)
+            elif attr in ("src_endpoint.ip", "dst_endpoint.ip") and type_score == 1.0 and lex_score < 0.2:
+                # If key is generic (var_N, etc.) but value is an IP, don't let score collapse
+                composite = max(composite, 0.90 if not any(t in k_lower for t in ("dst", "to")) else 0.88)
+
+            composite = max(0.0, min(1.0, composite))
             scored_candidates.append((attr, composite, lex_score, type_score))
 
         # Sort descending by composite score

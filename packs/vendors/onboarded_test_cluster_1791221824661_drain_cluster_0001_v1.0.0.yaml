@@ -1,0 +1,12 @@
+pack_id: onboarded_test_cluster_1791221824661_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_test_cluster_1791221824661
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_test_cluster_1791221824661_drain_cluster_0001
+  pattern: ^sample\s+log\s+for\s+(?P<var_4>\S+)$
+  extracted_fields:
+    src_ip: $src
+    var_4: $var_4
+signer_key_id: dev_signing
+signature: 97207f82cc084b958b67e908f287a015459e3c17a78611dfa1019cca5cf7786173ecee2e1ac207d6f0cb51b1df7775ccbfebe3ce8054920af109c196ffa8f30a

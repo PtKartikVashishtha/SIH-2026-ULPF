@@ -1,0 +1,25 @@
+pack_id: onboarded_drain_cluster_0752_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_drain_cluster_0752
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_drain_cluster_0752_drain_cluster_0001
+  pattern: ^(?P<var_1>\S+)\s+(?P<var_2>\S+)\s+(?P<var_3>\S+)\s+(?P<var_4>\S+)\s+INFO\s+dfs\.DataNode\$DataXceiver\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)[:/(](?P<src_port>\d+)\)?\s+Served\s+block\s+(?P<var_10>\S+)\s+to\s+(?P<var_12>\S+)\s+(?P<var_13>\S+)\s+<\*>:<\*>\s+Served\s+block\s+blk_<\*>\s+to\s+(?P<var_19>\S+)$
+  extracted_fields:
+    var_1: src_endpoint.port
+    var_2: traffic.bytes_out
+    var_3: traffic.bytes_out
+    var_4: src_endpoint.port
+    src_ip: src_endpoint.ip
+    src_port: src_endpoint.port
+    action: action
+    var_5: time
+    var_6: http_request.url.path
+    var_7: time
+    var_8: http_request.url.path
+    var_10: $var_10
+    var_12: $var_12
+    var_13: $var_13
+    var_19: $var_19
+signer_key_id: dev_signing
+signature: 4a0e77f5a563a4d670853b4005e9774ae93a5b1a8708351a65009ef513b31536d851bf05708142960a994ad54c0478a724839f13dfbd4df5882019b034fb7f06

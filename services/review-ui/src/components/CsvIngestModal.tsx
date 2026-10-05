@@ -137,19 +137,22 @@ export function CsvIngestModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {(result.records || []).slice(0, 10).map((r: any, idx: number) => (
-                    <tr key={r.lineage_id || idx}>
-                      <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-blue)" }}>
-                        {r.lineage_id ? r.lineage_id.slice(0, 16) + "..." : `row-${idx}`}
-                      </td>
-                      <td>
-                        <span className={`status-tag ${r.route === "HOT" ? "status-tag-confirmed" : "status-tag-pending"}`} style={{ fontSize: 9 }}>
-                          {r.route || "COLD"}
-                        </span>
-                      </td>
-                      <td style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-                        {r.sha256 ? `0x${r.sha256.slice(0, 8)}...` : "—"}
-                      </td>
+                  {(result.records || []).slice(0, 10).map((r: any, idx: number) => {
+                    const route = r.path_taken || r.route || "COLD";
+                    const sha = r.sha256_hash || r.sha256;
+                    return (
+                      <tr key={r.lineage_id || idx}>
+                        <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-blue)" }}>
+                          {r.lineage_id ? r.lineage_id.slice(0, 16) + "..." : `row-${idx}`}
+                        </td>
+                        <td>
+                          <span className={`status-tag ${route === "HOT" ? "status-tag-confirmed" : "status-tag-pending"}`} style={{ fontSize: 9 }}>
+                            {route}
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+                          {sha ? `0x${sha.slice(0, 8)}...` : "—"}
+                        </td>
                       <td style={{ textAlign: "right" }}>
                         <button
                           className="btn-secondary"
@@ -163,7 +166,8 @@ export function CsvIngestModal({
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

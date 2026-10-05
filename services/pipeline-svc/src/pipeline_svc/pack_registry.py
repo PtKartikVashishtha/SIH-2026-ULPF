@@ -141,7 +141,7 @@ class PackRegistry:
         while remaining and progress:
             progress = False
             for pid, data in list(remaining.items()):
-                extends_id = data.get("extends")
+                extends_id = data.get("parent_pack_id") or data.get("extends")
                 if not extends_id or extends_id in self._raw_pack_defs:
                     success = self.load_pack(data)
                     results[pid] = success
@@ -149,7 +149,8 @@ class PackRegistry:
                     progress = True
 
         for pid, data in remaining.items():
-            self._quarantined[pid] = f"Unresolved or cyclic dependency on extends='{data.get('extends')}'"
+            dep = data.get("parent_pack_id") or data.get("extends")
+            self._quarantined[pid] = f"Unresolved or cyclic dependency on parent='{dep}'"
             results[pid] = False
 
         return results

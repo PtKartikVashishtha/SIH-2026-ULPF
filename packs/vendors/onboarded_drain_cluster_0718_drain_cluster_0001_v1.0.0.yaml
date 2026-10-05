@@ -1,0 +1,22 @@
+pack_id: onboarded_drain_cluster_0718_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_drain_cluster_0718
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_drain_cluster_0718_drain_cluster_0001
+  pattern: ^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(?P<var_2>\S+)\s+(?P<var_3>\S+)\s+(?P<var_4>\S+)\s+(?P<var_5>\S+)\s+Failed\s+password\s+for\s+admin\s+from\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+port\s+(?P<src_port>\d+)\s+(?P<var_14>\S+)$
+  extracted_fields:
+    var_1: src_endpoint.port
+    var_2: time
+    var_3: time
+    var_4: time
+    var_5: action
+    var_6: action
+    var_7: time
+    src_ip: src_endpoint.ip
+    var_8: src_endpoint.port
+    var_9: time
+    src_port: $src_port
+    var_14: $var_14
+signer_key_id: dev_signing
+signature: c126c708667abeca10f2d9dcf16cf7658f00bff7f04998599810d714a0196c59fa2126f66b5f62075c5e4c4e8ff0032efc57fc417f637befbf779ed2a0698a0e

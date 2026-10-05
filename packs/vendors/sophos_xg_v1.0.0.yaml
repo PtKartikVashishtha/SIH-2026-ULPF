@@ -1,0 +1,33 @@
+pack_id: sophos_xg_v1.0.0
+source_type: sophos_xg
+version: 1.0.0
+description: Sophos XG / Cyberoam Next-Gen Firewall perimeter key-value log mapping
+  pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: sophos_xg_firewall_rule
+  pattern: Time="(?P<time>[^"]+)"\s+Log comp="(?P<log_comp>[^"]+)"\s+Log subtype="(?P<action>[^"]+)"(?:.*?)Src
+    IP="(?P<src_ip>\d+\.\d+\.\d+\.\d+)"\s+Dst IP="(?P<dst_ip>\d+\.\d+\.\d+\.\d+)"\s+Src
+    port="(?P<src_port>\d+)"\s+Dst port="(?P<dst_port>\d+)"\s+protocol="(?P<protocol>[^"]+)"
+  extracted_fields:
+    time: $time
+    action: $action
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    protocol: $protocol
+    log_comp: $log_comp
+- name: sophos_xg_general_traffic
+  pattern: .*Src IP="(?P<src_ip>\d+\.\d+\.\d+\.\d+)"\s+Dst IP="(?P<dst_ip>\d+\.\d+\.\d+\.\d+)"\s+Src
+    port="(?P<src_port>\d+)"\s+Dst port="(?P<dst_port>\d+)"\s+protocol="(?P<protocol>[^"]+)"(?:.*?)Log
+    subtype="(?P<action>[^"]+)"
+  extracted_fields:
+    action: $action
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    protocol: $protocol
+signer_key_id: dev_signing
+signature: 42f76cbc4036b0f0650937afa94de53302a7a4449599b81678940a0aefbcdc615295b9ec599111848decfea447fc0b86ebc984755a6e3382e8b38592d3aae00b

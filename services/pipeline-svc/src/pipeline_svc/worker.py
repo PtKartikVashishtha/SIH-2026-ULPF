@@ -6,10 +6,11 @@ OCSF Normalization engine, and Cold-Path Drain/SemanticMapper/ConfidenceGate.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sqlite3
-import sys
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -61,10 +62,15 @@ def decompress_zstd_bytes(compressed_bytes: bytes) -> bytes:
     return b""
 
 
+_GLOBAL_DECOMP_CACHE: dict[str, bytes] = {}
+_GLOBAL_IDX_CACHE: dict[str, dict[str, Any]] = {}
+
+
 def process_events(
     lineage_ids: list[str] | None = None,
     db_path: str | None = None,
     lineage_file: str | None = None,
+    batch_limit: int = 5000,
 ) -> dict[str, Any]:
     resolved_db = db_path or os.environ.get("DB_PATH") or "ulpf.db"
     db_file = Path(resolved_db) if Path(resolved_db).is_absolute() else REPO_ROOT / resolved_db
@@ -82,6 +88,9 @@ def process_events(
     conn = sqlite3.connect(str(db_file), timeout=30.0, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA cache_size = -64000")
+    conn.execute("PRAGMA temp_store = MEMORY")
     conn.execute("PRAGMA busy_timeout = 30000")
 
     # Find highest existing drain-cluster sequence to avoid colliding with seed clusters
@@ -133,61 +142,65 @@ def process_events(
             query = f"SELECT * FROM raw_events WHERE lineage_id IN ({placeholders})"
             rows.extend(conn.execute(query, batch).fetchall())
     else:
-        # Process all events in raw_events that do not have an extraction_history record yet
+        # Process unextracted events in high-speed indexed batches
         query = """
             SELECT re.* FROM raw_events re
             LEFT JOIN extraction_history eh ON eh.lineage_id = re.lineage_id
             WHERE eh.extraction_id IS NULL
-            ORDER BY re.created_at ASC
+            ORDER BY re.rowid ASC
+            LIMIT ?
         """
-        rows = conn.execute(query).fetchall()
+        rows = conn.execute(query, (batch_limit,)).fetchall()
 
     results: list[dict[str, Any]] = []
-    decomp_cache: dict[str, bytes] = {}
-    idx_cache: dict[str, dict[str, Any]] = {}
+    if len(_GLOBAL_DECOMP_CACHE) > 50:
+        _GLOBAL_DECOMP_CACHE.clear()
+        _GLOBAL_IDX_CACHE.clear()
 
     data_dir_env = os.environ.get("DATA_DIR")
     raw_store_dir = Path(data_dir_env) / "raw_store" if data_dir_env else (
         Path("/app/data/raw_store") if Path("/app/data/raw_store").exists() else REPO_ROOT / "data" / "raw_store"
     )
 
-    for idx, row in enumerate(rows):
-        lid = row["lineage_id"]
-        chunk_id = row["chunk_id"]
-        storage_ptr = row["storage_pointer"]
-        leaf_idx = row["merkle_leaf_index"]
+    conn.execute("BEGIN TRANSACTION")
+    try:
+        for _idx, row in enumerate(rows):
+            lid = row["lineage_id"]
+            chunk_id = row["chunk_id"]
+            storage_ptr = row["storage_pointer"]
+            leaf_idx = row["merkle_leaf_index"]
 
-        raw_text = ""
-        offset_key = f"offset_{leaf_idx}"
+            raw_text = ""
+            offset_key = f"offset_{leaf_idx}"
 
-        if chunk_id:
-            if chunk_id not in idx_cache:
-                idx_file = raw_store_dir / f"{chunk_id}.idx.json"
-                if idx_file.exists():
-                    try:
-                        idx_cache[chunk_id] = json.loads(idx_file.read_text(encoding="utf-8"))
-                    except Exception:
-                        idx_cache[chunk_id] = {}
-                else:
-                    idx_cache[chunk_id] = {}
+            if chunk_id:
+                if chunk_id not in _GLOBAL_IDX_CACHE:
+                    idx_file = raw_store_dir / f"{chunk_id}.idx.json"
+                    if idx_file.exists():
+                        try:
+                            _GLOBAL_IDX_CACHE[chunk_id] = json.loads(idx_file.read_text(encoding="utf-8"))
+                        except Exception:
+                            _GLOBAL_IDX_CACHE[chunk_id] = {}
+                    else:
+                        _GLOBAL_IDX_CACHE[chunk_id] = {}
 
-            if chunk_id not in decomp_cache:
-                zst_file = raw_store_dir / f"{chunk_id}.zst"
-                if zst_file.exists():
-                    try:
-                        decomp_cache[chunk_id] = decompress_zstd_bytes(zst_file.read_bytes())
-                    except Exception:
-                        decomp_cache[chunk_id] = b""
-                else:
-                    decomp_cache[chunk_id] = b""
+                if chunk_id not in _GLOBAL_DECOMP_CACHE:
+                    zst_file = raw_store_dir / f"{chunk_id}.zst"
+                    if zst_file.exists():
+                        try:
+                            _GLOBAL_DECOMP_CACHE[chunk_id] = decompress_zstd_bytes(zst_file.read_bytes())
+                        except Exception:
+                            _GLOBAL_DECOMP_CACHE[chunk_id] = b""
+                    else:
+                        _GLOBAL_DECOMP_CACHE[chunk_id] = b""
 
-            idx_data = idx_cache.get(chunk_id, {})
-            entry = idx_data.get("entries", {}).get(offset_key)
-            decomp = decomp_cache.get(chunk_id, b"")
-            if entry and decomp:
-                off = int(entry["offset"])
-                length = int(entry["length"])
-                raw_text = decomp[off:off + length].decode("utf-8", errors="replace")
+                idx_data = _GLOBAL_IDX_CACHE.get(chunk_id, {})
+                entry = idx_data.get("entries", {}).get(offset_key)
+                decomp = _GLOBAL_DECOMP_CACHE.get(chunk_id, b"")
+                if entry and decomp:
+                    off = int(entry["offset"])
+                    length = int(entry["length"])
+                    raw_text = decomp[off:off + length].decode("utf-8", errors="replace")
 
         # Fallback raw text if chunk wasn't readable
         if not raw_text:
@@ -230,13 +243,14 @@ def process_events(
                     (ext_id, storage_ptr, lid),
                 )
                 if cur.rowcount == 0:
-                    from datetime import datetime, timezone
-                    now_str = datetime.now(timezone.utc).isoformat()
+                    from datetime import datetime
+                    now_str = datetime.now(UTC).isoformat()
+                    empty_alts: list[dict[str, Any]] = []
                     cand = {
                         k: {
                             "candidate_ocsf_attribute": k,
                             "similarity_score": envelope.confidence_scores.get(k, 0.85),
-                            "alternate_candidates": [],
+                            "alternate_candidates": empty_alts,
                         }
                         for k in envelope.extracted_fields
                     }
@@ -264,8 +278,135 @@ def process_events(
                 "source_type": "unknown",
             })
 
+        conn.execute("COMMIT")
+    except Exception:
+        with contextlib.suppress(Exception):
+            conn.execute("ROLLBACK")
+        raise
+
     conn.close()
     return {"processed_count": len(results), "items": results}
+
+
+def onboard_cluster(
+    cluster_id: str,
+    actor: str = "analyst",
+    confirmed_mapping: dict[str, Any] | None = None,
+    db_path: str | None = None,
+) -> dict[str, Any]:
+    """Promotes a cluster by generating a named regex pack, signing with Ed25519,
+    writing YAML to disk, and RCU hot-reloading."""
+    resolved_db = db_path or os.environ.get("DB_PATH") or "ulpf.db"
+    db_file = Path(resolved_db) if Path(resolved_db).is_absolute() else REPO_ROOT / resolved_db
+
+    pub_key_env = os.environ.get("VERIFY_KEY_PATH")
+    pub_key_path = Path(pub_key_env) if pub_key_env else REPO_ROOT / "keys" / "dev_signing.pub"
+    pub_key = pub_key_path.read_bytes() if pub_key_path.exists() else b""
+
+    priv_key_path = REPO_ROOT / "keys" / "dev_signing.key"
+    if not priv_key_path.exists() and Path("/app/keys/dev_signing.key").exists():
+        priv_key_path = Path("/app/keys/dev_signing.key")
+
+    packs_env = os.environ.get("PACKS_DIR")
+    packs_dir = Path(packs_env) if packs_env else REPO_ROOT / "packs"
+    vendors_dir = packs_dir / "vendors" if (packs_dir / "vendors").exists() else packs_dir
+    vendors_dir.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_file), timeout=30.0)
+    conn.row_factory = sqlite3.Row
+
+    # 1. Fetch cluster items to find sample log text
+    row = conn.execute(
+        """
+        SELECT rq.*, eh.source_type, eh.extracted_fields
+        FROM review_queue rq
+        LEFT JOIN extraction_history eh ON eh.lineage_id = rq.lineage_id
+        WHERE rq.cluster_id = ?
+        ORDER BY rq.created_at DESC
+        LIMIT 1
+        """,
+        (cluster_id,),
+    ).fetchone()
+
+    sample_log = ""
+    clean_cid = cluster_id.replace("-", "_")
+    source_type = f"onboarded_{clean_cid}"
+    if row:
+        if row["source_type"] and row["source_type"] != "cold_path_unmapped":
+            source_type = row["source_type"]
+        ptr = row["sample_raw_pointer"]
+        if ptr and ptr.startswith("raw_store://"):
+            parts = ptr.replace("raw_store://", "").split("/")
+            if len(parts) >= 2:
+                chunk_id = parts[0]
+                offset_key = parts[1]
+                data_dir_env = os.environ.get("DATA_DIR")
+                raw_store_dir = Path(data_dir_env) / "raw_store" if data_dir_env else (
+                    Path("/app/data/raw_store")
+                    if Path("/app/data/raw_store").exists()
+                    else REPO_ROOT / "data" / "raw_store"
+                )
+                idx_file = raw_store_dir / f"{chunk_id}.idx.json"
+                zst_file = raw_store_dir / f"{chunk_id}.zst"
+                if idx_file.exists() and zst_file.exists():
+                    try:
+                        idx_data = json.loads(idx_file.read_text(encoding="utf-8"))
+                        entry = idx_data.get("entries", {}).get(offset_key)
+                        if entry:
+                            decomp = decompress_zstd_bytes(zst_file.read_bytes())
+                            off = int(entry["offset"])
+                            length = int(entry["length"])
+                            sample_log = decomp[off:off + length].decode("utf-8", errors="replace")
+                    except Exception:
+                        pass
+
+    if not sample_log and row:
+        raw_row = conn.execute("SELECT * FROM raw_events WHERE lineage_id = ?", (row["lineage_id"],)).fetchone()
+        if raw_row:
+            sample_log = (
+                f"source_ip={raw_row['source_ip']} "
+                f"port={raw_row['source_port']} "
+                f"proto={raw_row['transport_protocol']}"
+            )
+
+    from pipeline_svc.coldpath.draft_pack import DraftPackGenerator
+    from pipeline_svc.coldpath.drain import DrainParser
+    from pipeline_svc.coldpath.onboarding import AutoOnboarder
+
+    drain = DrainParser()
+    cluster, _ = drain.parse(sample_log or f"sample log for {cluster_id}")
+    generator = DraftPackGenerator()
+
+    mapping = confirmed_mapping or {}
+    if not mapping and row and row["candidate_mapping"]:
+        try:
+            cand = json.loads(row["candidate_mapping"])
+            mapping = {k: f"${k}" for k in cand}
+        except Exception:
+            pass
+
+    pack_dict = generator.generate_pack_dict(
+        cluster=cluster,
+        confirmed_mapping=mapping,
+        source_type=source_type,
+    )
+
+    registry = PackRegistry(public_key_pem=pub_key)
+    onboarder = AutoOnboarder(
+        packs_dir=packs_dir,
+        write_dir=vendors_dir,
+        signing_key_path=priv_key_path,
+        registry=registry,
+        db_path=str(db_file),
+    )
+
+    res = onboarder.confirm_and_promote(
+        pack_dict=pack_dict,
+        actor=actor,
+        cluster_id=cluster_id,
+    )
+    conn.close()
+    return res
 
 
 def main() -> None:
@@ -273,7 +414,21 @@ def main() -> None:
     parser.add_argument("--lineage-ids", nargs="*", help="List of lineage IDs to process")
     parser.add_argument("--lineage-file", help="Path to JSON file containing lineage IDs to process")
     parser.add_argument("--db-path", default=None, help="Path to ulpf.db")
+    parser.add_argument("--onboard-cluster", help="Cluster ID to onboard and generate signed pack for")
+    parser.add_argument("--actor", default="analyst", help="Analyst actor name")
+    parser.add_argument("--mapping-json", help="JSON string of confirmed mapping")
     args = parser.parse_args()
+
+    if args.onboard_cluster:
+        mapping = json.loads(args.mapping_json) if args.mapping_json else None
+        res = onboard_cluster(
+            cluster_id=args.onboard_cluster,
+            actor=args.actor,
+            confirmed_mapping=mapping,
+            db_path=args.db_path,
+        )
+        print(json.dumps(res))
+        return
 
     res = process_events(
         lineage_ids=args.lineage_ids,

@@ -136,6 +136,10 @@ export interface OcsfNetworkActivityV1 {
    * ULPF extension: lineage ID. Always identical to metadata.uid.
    */
   _lineage_id: string;
+  /**
+   * Vendor-specific unmapped attributes preserving complete raw fidelity.
+   */
+  unmapped?: Record<string, unknown>;
 }
 export interface Endpoint {
   ip?: string;

@@ -1,0 +1,38 @@
+pack_id: onboarded_drain_cluster_0625_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_drain_cluster_0625
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_drain_cluster_0625_drain_cluster_0001
+  pattern: .*?Time="?(?P<time>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Log\ comp="?(?P<log_comp>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Log\
+    subtype="?(?P<action>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Firewall\ rule="?(?P<firewall_rule>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Firewall\
+    rule\ name="?(?P<firewall_rule_name>[^"\s]+(?:\s+[^"\s]+)*)"?.*?NAT\ rule="?(?P<nat_rule>[^"\s]+(?:\s+[^"\s]+)*)"?.*?NAT\
+    rule\ name="?(?P<nat_rule_name>[^"\s]+(?:\s+[^"\s]+)*)"?.*?In\ interface="?(?P<in_interface>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Out\
+    interface="?(?P<out_interface>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Src\ IP="?(?P<src_ip>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Dst\
+    IP="?(?P<dst_ip>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Src\ port="?(?P<src_port>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Dst\
+    port="?(?P<dst_port>[^"\s]+(?:\s+[^"\s]+)*)"?.*?protocol="?(?P<protocol>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Rule\
+    type="?(?P<rule_type>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Live\ PCAP="?(?P<live_pcap>[^"\s]+(?:\s+[^"\s]+)*)"?.*?Log\
+    occurrence="?(?P<log_occurrence>[^"\s]+(?:\s+[^"\s]+)*)"?.*
+  extracted_fields:
+    IP: dst_endpoint.ip
+    port: dst_endpoint.port
+    protocol: connection_info.protocol_name
+    subtype: action
+    time: $time
+    log_comp: $log_comp
+    action: $action
+    firewall_rule: $firewall_rule
+    firewall_rule_name: $firewall_rule_name
+    nat_rule: $nat_rule
+    nat_rule_name: $nat_rule_name
+    in_interface: $in_interface
+    out_interface: $out_interface
+    src_ip: $src_ip
+    dst_ip: $dst_ip
+    src_port: $src_port
+    dst_port: $dst_port
+    rule_type: $rule_type
+    live_pcap: $live_pcap
+    log_occurrence: $log_occurrence
+signer_key_id: dev_signing
+signature: 7ee398c0b575007725333be4c63e00917d85969731159622fd0f7ac410030c96dfe75c3d0639ee91b688aef74859a8f3c1919d7358ef31ebd0b7de7a5ec7a407

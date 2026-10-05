@@ -1,0 +1,18 @@
+pack_id: syslog_rfc5424_v1.0.0
+source_type: syslog_rfc5424
+version: 1.0.0
+description: IETF RFC5424 Structured Perimeter Appliance mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: rfc5424_perimeter_packet
+  pattern: ^<\d+>1\s+(?P<timestamp>\S+)\s+(?P<hostname>\S+)\s+(?P<app>\S+)\s+(?P<proc_id>\S+)\s+(?P<msg_id>\S+)\s+(?P<sd>\[.*?\]|-)\s+(?P<action>ALLOW|DENY|DROP|PERMIT)\s+(?P<protocol>TCP|UDP|ICMP)\s+src=(?P<src_ip>\d+\.\d+\.\d+\.\d+):(?P<src_port>\d+)\s+dst=(?P<dst_ip>\d+\.\d+\.\d+\.\d+):(?P<dst_port>\d+)
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    timestamp: $timestamp
+signer_key_id: dev_signing
+signature: 05b7ee303ebebbb0e6e5195e9e21e118aa4a794b774312fe23431bd183a6da343ba14c67702e600999c074bd92977980279c4d4f2828c9bba423d8e5b6bc5e0d

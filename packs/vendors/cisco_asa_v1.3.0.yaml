@@ -5,7 +5,7 @@ description: Cisco Adaptive Security Appliance (ASA) Firewall mapping pack
 parent_pack_id: base_network_v1.0.0
 signatures:
 - name: asa_deny_106023
-  pattern: '%ASA-4-106023:\s+(?P<action>Deny|Permit)\s+(?P<protocol>\w+)\s+src\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)\s+dst\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)(\s+by\s+access-group\s+"(?P<acl_name>[^"]+)")?'
+  pattern: '%ASA-4-106023:\s+(?P<action>Deny|Permit)\s+(?P<protocol>\w+)\s+src\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)\s+dst\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)(\s+by\s+access-group\s+"?(?P<acl_name>[^"\s]+)"?)?'
   extracted_fields:
     action: $action
     protocol: $protocol
@@ -26,5 +26,124 @@ signatures:
     dst_ip: $dst_ip
     dst_port: $dst_port
     bytes: $bytes
+- name: asa_built_302013
+  pattern: '%ASA-6-302013:\s+Built\s+(?P<direction>inbound|outbound)\s+(?P<protocol>\w+)\s+connection\s+(?P<conn_id>\d+)\s+for\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)(\s+\([^)]*\))?\s+to\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)(\s+\([^)]*\))?'
+  extracted_fields:
+    action: Open
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    direction: $direction
+    conn_id: $conn_id
+- name: asa_built_udp_302015
+  pattern: '%ASA-6-302015:\s+Built\s+(?P<direction>inbound|outbound)\s+UDP\s+connection\s+(?P<conn_id>\d+)\s+for\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)(\s+\([^)]*\))?\s+to\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)'
+  extracted_fields:
+    action: Open
+    protocol: udp
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    direction: $direction
+    conn_id: $conn_id
+- name: asa_teardown_udp_302016
+  pattern: '%ASA-6-302016:\s+Teardown\s+UDP\s+connection\s+(?P<conn_id>\d+)\s+for\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)\s+to\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)\s+duration\s+(?P<duration>[0-9:]+)\s+bytes\s+(?P<bytes>\d+)'
+  extracted_fields:
+    action: Teardown
+    protocol: udp
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    bytes: $bytes
+- name: asa_acl_106100
+  pattern: '%ASA-6-106100:\s+access-list\s+(?P<acl_name>\S+)\s+(?P<action>denied|permitted)\s+(?P<protocol>\w+)\s+(?P<src_interface>\w+)/(?P<src_ip>\d+\.\d+\.\d+\.\d+)\((?P<src_port>\d+)\)\s+->\s+(?P<dst_interface>\w+)/(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\((?P<dst_port>\d+)\)'
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    acl_name: $acl_name
+- name: asa_acl_tcp_710003
+  pattern: '%ASA-3-710003:\s+TCP\s+access\s+(?P<action>denied)\s+by\s+ACL\s+from\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)/(?P<src_port>\d+)\s+to\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)/(?P<dst_port>\d+)'
+  extracted_fields:
+    action: Refuse
+    protocol: tcp
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+- name: asa_icmp_denied_313004
+  pattern: '%ASA-5-313004:\s+(?P<action>Denied)\s+ICMP\s+type\s+(?P<icmp_type>\d+)\s+code\s+(?P<icmp_code>\d+)\s+from\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+to\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Refuse
+    protocol: icmp
+    src_ip: $src_ip
+    dst_ip: $dst_ip
+- name: asa_icmp_error_313005
+  pattern: '%ASA-5-313005:\s+No\s+matching\s+connection\s+for\s+ICMP\s+error\s+message:\s+icmp\s+src\s+(?P<src_interface>\w+):(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+dst\s+(?P<dst_interface>\w+):(?P<dst_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Traffic
+    protocol: icmp
+    src_ip: $src_ip
+    dst_ip: $dst_ip
+- name: asa_auth_failed_106012
+  pattern: '%ASA-5-106012:\s+User\s+authentication\s+(?P<action>failed)\s+for\s+user\s+(?P<user>\S+)\s+from\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Refuse
+    protocol: tcp
+    src_ip: $src_ip
+    user: $user
+- name: asa_auth_ok_113005
+  pattern: '%ASA-6-113005:\s+AAA\s+user\s+authentication\s+(?P<action>successful)\s+for\s+user\s+(?P<user>\S+)\s+from\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Open
+    protocol: tcp
+    src_ip: $src_ip
+    user: $user
+- name: asa_vpn_716001
+  pattern: '%ASA-6-716001:\s+Group\s+<(?P<group>[^>]+)>\s+User\s+<(?P<user>[^>]+)>\s+IP\s+<(?P<src_ip>\d+\.\d+\.\d+\.\d+)>\s+(?P<action>assigned)'
+  extracted_fields:
+    action: Open
+    protocol: tcp
+    src_ip: $src_ip
+    user: $user
+    group: $group
+- name: asa_vpn_716002
+  pattern: '%ASA-6-716002:\s+Group\s+<(?P<group>[^>]+)>\s+User\s+<(?P<user>[^>]+)>\s+IP\s+<(?P<src_ip>\d+\.\d+\.\d+\.\d+)>\s+(?P<action>disconnected)'
+  extracted_fields:
+    action: Close
+    protocol: tcp
+    src_ip: $src_ip
+    user: $user
+    group: $group
+- name: asa_ipsec_402116
+  pattern: '%ASA-4-402116:\s+IPsec:\s+Received\s+an\s+invalid\s+packet\s+from\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Refuse
+    protocol: ipsec
+    src_ip: $src_ip
+- name: asa_ikev2_602304
+  pattern: '%ASA-6-602304:\s+IPSEC:\s+An\s+IKEv2\s+SA\s+was\s+(?P<action>established)\s+with\s+peer\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Open
+    protocol: udp
+    src_ip: $src_ip
+- name: asa_ikev2_602305
+  pattern: '%ASA-6-602305:\s+IPSEC:\s+An\s+IKEv2\s+SA\s+was\s+(?P<action>deleted)\s+with\s+peer\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Close
+    protocol: udp
+    src_ip: $src_ip
+- name: asa_threat_733100
+  pattern: '%ASA-4-733100:\s+Threat\s+Detection\s+detected\s+a\s+high\s+rate\s+of\s+connections\s+from\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)'
+  extracted_fields:
+    action: Traffic
+    protocol: tcp
+    src_ip: $src_ip
 signer_key_id: dev_signing
-signature: 85b26c4c2054f35eb01338448f9c0ef895dc90519bbc3bdd69103f6463f1ee1dc2f254d174bbdf74101092ac3a1450df4baef6937571ba093b5d6f74a55dbe0a
+signature: b30b2baff27fcab592512e4cdc4409d7803f19d4ba93c0a217e5ee0fc77cc5356792ba8a0f64a769bb12afe42c1351890034b76e20bc054230ec0ea4cc0f830f

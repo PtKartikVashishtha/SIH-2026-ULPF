@@ -1,0 +1,19 @@
+pack_id: cef_perimeter_v1.0.0
+source_type: cef_perimeter
+version: 1.0.0
+description: ArcSight Common Event Format (CEF) Perimeter Gateway mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: cef_firewall_event
+  pattern: CEF:0\|(?P<vendor>[^\|]+)\|(?P<product>[^\|]+)\|(?P<version>[^\|]+)\|(?P<device_event_class_id>[^\|]+)\|(?P<name>[^\|]+)\|(?P<severity>[^\|]+)\|.*?src=(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+.*?dst=(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\s+.*?spt=(?P<src_port>\d+)\s+.*?dpt=(?P<dst_port>\d+)\s+.*?proto=(?P<proto>\w+)\s+.*?act=(?P<action>\w+)
+  extracted_fields:
+    action: $action
+    protocol: $proto
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    vendor: $vendor
+    product: $product
+signer_key_id: dev_signing
+signature: a8a75a22fa85d7d96761144fc9727599eb359a4a40369a6d896cbc27c4a78cdd88c90f9e0ed4703677c7e237163a76fc5080049a69c4d4cd29a357c0334f8d04

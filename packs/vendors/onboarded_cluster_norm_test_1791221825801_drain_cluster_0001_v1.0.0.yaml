@@ -1,0 +1,17 @@
+pack_id: onboarded_cluster_norm_test_1791221825801_drain_cluster_0001_v1.0.0
+version: 1.0.0
+source_type: onboarded_cluster_norm_test_1791221825801
+description: Auto-generated mapping pack from cluster drain-cluster-0001
+signatures:
+- name: onboarded_cluster_norm_test_1791221825801_drain_cluster_0001
+  pattern: ^sample\s+log\s+for\s+(?P<var_4>\S+)$
+  extracted_fields:
+    Src IP: src_endpoint.ip
+    Dst IP: dst_endpoint.ip
+    Src port: src_endpoint.port
+    Dst port: dst_endpoint.port
+    protocol: connection_info.protocol_name
+    Log subtype: action
+    var_4: $var_4
+signer_key_id: dev_signing
+signature: 76b5a60da0f00fef061a025be9f52b9765496a7169d8780c519107e352fc4bb39df466174c493fd8c4ae036ea4fd6b6dce7749962832aef6abda9abbee87240c

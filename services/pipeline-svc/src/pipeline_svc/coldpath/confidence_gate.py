@@ -63,6 +63,26 @@ class ConfidenceGate:
             extracted_fields[raw_key] = val
             confidence_scores[raw_key] = score
 
+            # Normalize canonical aliases so downstream normalizer receives standard keys
+            if attr == "src_endpoint.ip" and "src_ip" not in extracted_fields:
+                extracted_fields["src_ip"] = val
+                confidence_scores["src_ip"] = score
+            elif attr == "dst_endpoint.ip" and "dst_ip" not in extracted_fields:
+                extracted_fields["dst_ip"] = val
+                confidence_scores["dst_ip"] = score
+            elif attr == "src_endpoint.port" and "src_port" not in extracted_fields:
+                extracted_fields["src_port"] = val
+                confidence_scores["src_port"] = score
+            elif attr == "dst_endpoint.port" and "dst_port" not in extracted_fields:
+                extracted_fields["dst_port"] = val
+                confidence_scores["dst_port"] = score
+            elif attr == "connection_info.protocol_name" and "protocol" not in extracted_fields:
+                extracted_fields["protocol"] = val
+                confidence_scores["protocol"] = score
+            elif attr == "action" and "action" not in extracted_fields:
+                extracted_fields["action"] = val
+                confidence_scores["action"] = score
+
             candidate_mapping[raw_key] = {
                 "candidate_ocsf_attribute": attr,
                 "similarity_score": score,

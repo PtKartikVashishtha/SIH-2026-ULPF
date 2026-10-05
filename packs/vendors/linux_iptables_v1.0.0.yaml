@@ -1,0 +1,19 @@
+pack_id: linux_iptables_v1.0.0
+source_type: linux_iptables
+version: 1.0.0
+description: Linux Kernel Netfilter iptables and UFW firewall mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: iptables_packet_log
+  pattern: (?P<prefix>\[\w+\]|[A-Z_\-]+):\s+.*IN=(?P<in_if>\S*)\s+OUT=(?P<out_if>\S*)\s+.*SRC=(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+DST=(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\s+.*PROTO=(?P<protocol>\w+)\s+SPT=(?P<src_port>\d+)\s+DPT=(?P<dst_port>\d+)
+  extracted_fields:
+    action: Deny
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    in_interface: $in_if
+    out_interface: $out_if
+signer_key_id: dev_signing
+signature: 90e524b7ae2fb54ce3935c869b10a5dac321d83e17cb05574c4d14d731d402a2e3659c0b100e618107f74bb0b2dc00a27356d00682f8a75a84251283be5b8607

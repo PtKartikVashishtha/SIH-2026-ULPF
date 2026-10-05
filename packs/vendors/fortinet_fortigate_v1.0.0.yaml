@@ -1,0 +1,26 @@
+pack_id: fortinet_fortigate_v1.0.0
+source_type: fortinet_fortigate
+version: 1.0.0
+description: Fortinet FortiGate UTM/Next-Gen Firewall key-value log mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: fortigate_traffic
+  pattern: type="?traffic"?\s+.*subtype="?(?P<subtype>[^"\s]+)"?\s+.*srcip=(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+srcport=(?P<src_port>\d+)\s+.*dstip=(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\s+dstport=(?P<dst_port>\d+)\s+.*proto=(?P<proto>\d+|\w+)\s+.*action="?(?P<action>accept|deny|close|client-rst|server-rst|timeout|block)"?
+  extracted_fields:
+    action: $action
+    protocol: $proto
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    subtype: $subtype
+- name: fortigate_utm_event
+  pattern: type="?utm"?\s+.*subtype="?(?P<subtype>[^"\s]+)"?\s+.*eventtype="?(?P<eventtype>[^"\s]+)"?\s+.*srcip=(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+.*dstip=(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\s+.*action="?(?P<action>passthrough|blocked|dropped|monitored)"?
+  extracted_fields:
+    action: $action
+    src_ip: $src_ip
+    dst_ip: $dst_ip
+    subtype: $subtype
+    eventtype: $eventtype
+signer_key_id: dev_signing
+signature: c1cc67b40b467e59f1e1150310f5d8497c808277ee2d54b5ccc932fc664cec80d35c596d819f39167e073f604a5f4eecb69bf4a5175bd75b6e4c9677c01f1705

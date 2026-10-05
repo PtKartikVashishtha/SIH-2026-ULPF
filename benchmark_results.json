@@ -1,28 +1,106 @@
 {
-  "timestamp_utc": "2026-09-29T19:05:51Z",
+  "timestamp_utc": "2026-10-05T17:51:35Z",
+  "scale_configured": 10000,
+  "memory_rss_mb_start": 0.0,
+  "memory_rss_mb_end": 0.0,
   "ingestion_seal": {
-    "throughput_eps": 390195.17688651866,
-    "p50_us": 2.2,
-    "p90_us": 2.5,
-    "p99_us": 4.5
+    "throughput_eps": 438148.7343571932,
+    "throughput_mb_s": 57.2456136769633,
+    "p50_us": 2.1,
+    "p90_us": 2.3,
+    "p99_us": 2.5
   },
-  "hotpath_router": {
-    "throughput_eps": 40300.22051932513,
-    "p50_us": 22.2,
-    "p90_us": 27.8,
-    "p99_us": 80.9
+  "hotpath_router_mixed": {
+    "throughput_eps": 17535.205871353566,
+    "p50_us": 25.5,
+    "p90_us": 142.7,
+    "p99_us": 185.1
   },
   "normalization": {
-    "throughput_eps": 37775.24935373609,
-    "p50_us": 22.5,
-    "p90_us": 27.6,
-    "p99_us": 102.1
+    "throughput_eps": 44018.908760892875,
+    "p50_us": 21.9,
+    "p90_us": 22.6,
+    "p99_us": 28.6
   },
   "merkle_tree": {
-    "trees_per_sec": 9182.668998001946,
-    "equivalent_eps": 918266.8998001947,
-    "p50_us": 101.7,
-    "p90_us": 124.1,
-    "p99_us": 244.9
+    "trees_per_sec": 13196.006854847767,
+    "equivalent_eps": 1319600.6854847765,
+    "p50_us": 70.3,
+    "p90_us": 101.2,
+    "p99_us": 137.2
+  },
+  "end_to_end_pipeline": {
+    "throughput_eps": 8973.871854040302,
+    "p50_us": 80.6,
+    "p90_us": 201.0,
+    "p99_us": 247.4
+  },
+  "per_vendor_breakdown": {
+    "cisco_asa": {
+      "throughput_eps": 47249.15428664079,
+      "p50_us": 21.0,
+      "p90_us": 21.7,
+      "p99_us": 25.4
+    },
+    "fortinet_fortigate": {
+      "throughput_eps": 50240.400197838724,
+      "p50_us": 19.1,
+      "p90_us": 21.5,
+      "p99_us": 25.8
+    },
+    "paloalto_panos": {
+      "throughput_eps": 10592.664899441972,
+      "p50_us": 91.0,
+      "p90_us": 103.7,
+      "p99_us": 147.6
+    },
+    "checkpoint_fw": {
+      "throughput_eps": 72377.49222659603,
+      "p50_us": 13.1,
+      "p90_us": 14.4,
+      "p99_us": 22.0
+    },
+    "juniper_srx": {
+      "throughput_eps": 48830.39008331927,
+      "p50_us": 20.2,
+      "p90_us": 20.9,
+      "p99_us": 27.0
+    },
+    "suricata_ids": {
+      "throughput_eps": 7860.640280948268,
+      "p50_us": 125.9,
+      "p90_us": 138.4,
+      "p99_us": 155.3
+    },
+    "zeek_conn": {
+      "throughput_eps": 8317.080373731444,
+      "p50_us": 76.8,
+      "p90_us": 199.9,
+      "p99_us": 601.6
+    },
+    "linux_iptables": {
+      "throughput_eps": 16344.06210674447,
+      "p50_us": 51.9,
+      "p90_us": 73.8,
+      "p99_us": 318.9
+    },
+    "cef_perimeter": {
+      "throughput_eps": 15656.962218636801,
+      "p50_us": 47.1,
+      "p90_us": 99.9,
+      "p99_us": 331.0
+    },
+    "leef_perimeter": {
+      "throughput_eps": 13280.71513920993,
+      "p50_us": 58.7,
+      "p90_us": 84.6,
+      "p99_us": 397.7
+    },
+    "syslog_rfc5424": {
+      "throughput_eps": 1907.3104348778252,
+      "p50_us": 384.6,
+      "p90_us": 882.2,
+      "p99_us": 2368.6
+    }
   }
 }

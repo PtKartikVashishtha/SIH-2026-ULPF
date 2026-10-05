@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -92,3 +92,7 @@ class OcsfNetworkActivityV1(BaseModel):
             description='ULPF extension: lineage ID. Always identical to metadata.uid.',
         ),
     ]
+    unmapped: Annotated[
+        dict[str, Any] | None,
+        Field(description='Vendor-specific unmapped attributes preserving complete raw fidelity.'),
+    ] = None

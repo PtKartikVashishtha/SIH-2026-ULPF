@@ -1,0 +1,17 @@
+pack_id: checkpoint_fw_v1.0.0
+source_type: checkpoint_fw
+version: 1.0.0
+description: Check Point Gaia Firewall log mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: checkpoint_traffic_drop_accept
+  pattern: CheckPoint.*?action[:=]"?(?P<action>Drop|Accept|Reject|drop|accept|reject)"?;\s+.*?proto[:=]"?(?P<protocol>\w+)"?;\s+.*?src[:=]"?(?P<src_ip>\d+\.\d+\.\d+\.\d+)"?;\s+.*?dst[:=]"?(?P<dst_ip>\d+\.\d+\.\d+\.\d+)"?;\s+.*?sport[:=]"?(?P<src_port>\d+)"?;\s+.*?dport[:=]"?(?P<dst_port>\d+)"?
+  extracted_fields:
+    action: $action
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+signer_key_id: dev_signing
+signature: 214766cebb4f0bb380f8c505afbcd1221f1be2225a8de13affc5a495146a21389b4d017dc3d38d78fcde17c9790862a20465252bf13b922365c9739d9dced409

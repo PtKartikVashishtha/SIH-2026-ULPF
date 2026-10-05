@@ -17,11 +17,26 @@ import re
 
 # Regular expressions for identifying variable tokens
 RE_IPV4 = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$")
+RE_IP_PORT = re.compile(
+    r"^(?:(?P<iface>[a-zA-Z0-9_\-]+)[:/])?(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[:/(](?P<port>\d{1,5})\)?$"
+)
+RE_IP_ONLY = re.compile(
+    r"^(?:(?P<iface>[a-zA-Z0-9_\-]+)[:/])?(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$"
+)
 RE_NUM = re.compile(r"^\d+$")
 RE_HEX = re.compile(r"^0x[0-9a-fA-F]+$")
 RE_UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 RE_DATE_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}")
 RE_CONTAINS_DIGIT = re.compile(r"\d")
+RE_KV_PAIRS = re.compile(
+    r'([a-zA-Z0-9_\-]+(?:\s+[a-zA-Z0-9_\-]+)*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s]+))'
+)
+
+KNOWN_ACTIONS = {
+    "deny", "denied", "drop", "dropped", "block", "blocked", "permit",
+    "permitted", "allow", "allowed", "built", "teardown", "accept", "refuse",
+}
+KNOWN_PROTOS = {"tcp", "udp", "icmp", "ip", "gre", "esp"}
 
 
 def is_variable_token(token: str) -> bool:
@@ -231,21 +246,115 @@ class DrainParser:
         return cluster
 
     def extract_variables(self, cluster: LogCluster, log_line: str) -> dict[str, str]:
-        """Extracts variable tokens from a log line against the cluster template."""
+        """
+        Extracts variable tokens from a log line against the cluster template.
+        Uses contextual preceding keywords and syntactic patterns (IP:port, key=val)
+        to assign semantic names rather than generic var_N keys.
+        """
+        # 0. Structured key-value log check (e.g. Check Point, Fortinet, Sophos, SonicWall)
+        kv_matches = RE_KV_PAIRS.findall(log_line)
+        if len(kv_matches) >= 2:
+            extracted: dict[str, str] = {}
+            for k, q1, q2, unq in kv_matches:
+                val = (q1 or q2 or unq).strip().strip("\"'\\")
+                k_clean = k.strip().lower()
+                if "src" in k_clean and ("ip" in k_clean or "addr" in k_clean or "host" in k_clean):
+                    extracted["src_ip"] = val
+                elif (
+                    ("dst" in k_clean or "dest" in k_clean)
+                    and ("ip" in k_clean or "addr" in k_clean or "host" in k_clean)
+                ):
+                    extracted["dst_ip"] = val
+                elif "src" in k_clean and ("port" in k_clean or "spt" in k_clean):
+                    extracted["src_port"] = val
+                elif ("dst" in k_clean or "dest" in k_clean) and ("port" in k_clean or "dport" in k_clean):
+                    extracted["dst_port"] = val
+                elif k_clean in ("proto", "protocol"):
+                    extracted["protocol"] = val
+                elif k_clean in ("action", "subtype", "log subtype", "status", "act"):
+                    extracted["action"] = val
+                elif k_clean in ("time", "timestamp", "date", "eventtime"):
+                    extracted["time"] = val
+                else:
+                    safe_k = re.sub(r"[^a-zA-Z0-9_]+", "_", k_clean)
+                    extracted[safe_k] = val
+            return extracted
+
         tokens = self.tokenize(log_line)
         extracted: dict[str, str] = {}
         if len(tokens) != len(cluster.template_tokens):
             return extracted
 
+        ip_count = 0
         var_idx = 1
-        for t_tok, l_tok in zip(cluster.template_tokens, tokens, strict=False):
+
+        for idx, (t_tok, l_tok) in enumerate(zip(cluster.template_tokens, tokens, strict=False)):
+            prev_tok = tokens[idx - 1].lower().rstrip(":") if idx > 0 else ""
+
+            # 1. Key-Value structure: "src=10.1.1.1" or "proto=tcp"
+            if "=" in l_tok and not l_tok.startswith("="):
+                k, v = l_tok.split("=", 1)
+                clean_k = re.sub(r"[^a-zA-Z0-9_]", "_", k).lower()
+                clean_v = v.strip("\"'\\")
+                extracted[clean_k] = clean_v
+                continue
+
+            clean_val = l_tok.strip("(),;\"'")
+
+            # 2. Action keywords
+            if clean_val.lower() in KNOWN_ACTIONS and "action" not in extracted:
+                extracted["action"] = clean_val
+                if t_tok == "<*>":
+                    continue
+
+            # 3. Protocol keywords
+            if clean_val.lower() in KNOWN_PROTOS and "protocol" not in extracted:
+                extracted["protocol"] = clean_val.lower()
+                if t_tok == "<*>":
+                    continue
+
+            # 4. IP:Port compound (e.g. 172.16.50.4:41234 or outside:203.0.113.10/443)
+            m_ipport = RE_IP_PORT.match(clean_val)
+            if m_ipport:
+                ip_val = m_ipport.group("ip")
+                port_val = m_ipport.group("port")
+                iface_val = m_ipport.group("iface")
+
+                is_src = prev_tok in ("from", "src", "source", "for", "client") or (
+                    ip_count == 0 and prev_tok not in ("to", "dst", "dest")
+                )
+                is_dst = prev_tok in ("to", "dst", "dest", "->") or ip_count == 1
+
+                prefix = "src" if (is_src and not is_dst) else ("dst" if is_dst else f"endpoint_{ip_count + 1}")
+                extracted[f"{prefix}_ip"] = ip_val
+                extracted[f"{prefix}_port"] = port_val
+                if iface_val:
+                    extracted[f"{prefix}_interface"] = iface_val
+                ip_count += 1
+                continue
+
+            # 5. Standalone IP address
+            m_ip = RE_IP_ONLY.match(clean_val)
+            if m_ip:
+                ip_val = m_ip.group("ip")
+                iface_val = m_ip.group("iface")
+
+                is_src = prev_tok in ("from", "src", "source", "for", "client") or (
+                    ip_count == 0 and prev_tok not in ("to", "dst", "dest")
+                )
+                is_dst = prev_tok in ("to", "dst", "dest", "->") or ip_count == 1
+
+                prefix = "src" if (is_src and not is_dst) else ("dst" if is_dst else f"endpoint_{ip_count + 1}")
+                extracted[f"{prefix}_ip"] = ip_val
+                if iface_val:
+                    extracted[f"{prefix}_interface"] = iface_val
+                ip_count += 1
+                continue
+
+            # 6. Fallback for wildcards without specific syntax
             if t_tok == "<*>":
-                # Check if it has a prefix like "src=10.1.1.1"
-                if "=" in l_tok:
-                    k, v = l_tok.split("=", 1)
-                    extracted[k] = v
-                else:
-                    extracted[f"var_{var_idx}"] = l_tok
+                extracted[f"var_{var_idx}"] = l_tok
                 var_idx += 1
 
         return extracted
+

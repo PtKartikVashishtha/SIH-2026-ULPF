@@ -1,0 +1,19 @@
+pack_id: zeek_conn_v1.0.0
+source_type: zeek_conn
+version: 1.0.0
+description: Zeek (Bro) conn.log network monitor mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: zeek_conn_record
+  pattern: ^(?P<ts>\d+(\.\d+)?)\s+(?P<uid>\S+)\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+)\s+(?P<src_port>\d+)\s+(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\s+(?P<dst_port>\d+)\s+(?P<protocol>tcp|udp|icmp)\s+(?P<service>\S+)\s+(?P<duration>\S+)\s+(?P<orig_bytes>\S+)\s+(?P<resp_bytes>\S+)\s+(?P<conn_state>\S+)
+  extracted_fields:
+    action: Traffic
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    conn_state: $conn_state
+    service: $service
+signer_key_id: dev_signing
+signature: a251da3aa80cfe55e599ca9948b012c3f64c8eda69d72a8b8e08b2b3bdfc745f60196fca8ed28ee3f4b6dcd25425c9f920e8e80f3bb000deadc56713c6888c03

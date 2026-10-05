@@ -1,0 +1,19 @@
+pack_id: suricata_ids_v1.0.0
+source_type: suricata_ids
+version: 1.0.0
+description: Suricata and Snort IDS/IPS alert mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: suricata_fast_alert
+  pattern: \[\*\*\]\s+\[(?P<gid>\d+):(?P<sid>\d+):(?P<rev>\d+)\]\s+(?P<alert_msg>[^\[]+)\[\*\*\]\s+.*\{(?P<protocol>\w+)\}\s+(?P<src_ip>\d+\.\d+\.\d+\.\d+):(?P<src_port>\d+)\s+->\s+(?P<dst_ip>\d+\.\d+\.\d+\.\d+):(?P<dst_port>\d+)
+  extracted_fields:
+    action: Refuse
+    protocol: $protocol
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    signature_id: $sid
+    alert_message: $alert_msg
+signer_key_id: dev_signing
+signature: 0e235b5915237c705db29b33138440287f6510943a54140a34d4eb7881ba8a2ee7f4907c876bbbd5c11ac6dcc0d30c0119e808b17bc4ee09f750552355de5402

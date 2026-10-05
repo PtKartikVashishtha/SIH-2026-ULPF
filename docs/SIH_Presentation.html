@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ULPF - Smart India Hackathon Presentation</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(18, 26, 43, 0.85);
+      --border: rgba(56, 189, 248, 0.2);
+      --primary: #00f2fe;
+      --accent: #4facfe;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Deck Layout */
+    .deck-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 20%, rgba(14, 165, 233, 0.12), transparent 70%),
+                  radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08), transparent 60%);
+    }
+
+    .slide {
+      display: none;
+      width: 92vw;
+      max-width: 1400px;
+      height: 86vh;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 44px 56px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 242, 254, 0.1);
+      flex-direction: column;
+      justify-content: space-between;
+      animation: fadeIn 0.3s ease-out;
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Typography */
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(0, 242, 254, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      margin-bottom: 12px;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    h1 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #ffffff 40%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* Grids & Cards */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 10px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 10px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 22px;
+      transition: all 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 242, 254, 0.1);
+    }
+
+    .card h3 {
+      font-size: 1.15rem;
+      color: var(--primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card p, .card li {
+      font-size: 0.95rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    ul {
+      list-style-type: none;
+    }
+
+    ul li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+    }
+
+    ul li::before {
+      content: "▹";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    /* Stat Box */
+    .stat-number {
+      font-size: 2.3rem;
+      font-weight: 800;
+      color: #ffffff;
+      font-family: monospace;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: rgba(30, 41, 59, 0.8);
+      color: var(--primary);
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 2px solid rgba(0, 242, 254, 0.3);
+      font-weight: 600;
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Controls Bar */
+    .controls {
+      position: fixed;
+      bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border);
+      padding: 10px 24px;
+      border-radius: 40px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 8px 18px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+
+    .slide-counter {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-family: monospace;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* Print Styles for PDF Export */
+    @media print {
+      body {
+        overflow: visible;
+        background: #fff !important;
+        color: #000 !important;
+      }
+      .controls {
+        display: none !important;
+      }
+      .slide {
+        display: flex !important;
+        page-break-after: always;
+        width: 100% !important;
+        height: 100vh !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+        color: #000 !important;
+      }
+      h1, h2, h3, .card h3 {
+        color: #0284c7 !important;
+        -webkit-text-fill-color: initial !important;
+      }
+      .card {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+      td, p, li {
+        color: #334155 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck-container">
+
+  <!-- SLIDE 1: TITLE SLIDE -->
+  <div class="slide active">
+    <div>
+      <span class="badge">Smart India Hackathon (SIH) Evaluation</span>
+      <h1 style="font-size: 3.4rem; margin-top: 16px;">Universal Log Pre-processing Framework (ULPF)</h1>
+      <p class="subtitle" style="font-size: 1.35rem; margin-top: 8px; color: var(--primary);">
+        Next-Generation, Air-Gapped, Lossless Cybersecurity Normalization Engine with Merkle Provenance
+      </p>
+    </div>
+
+    <div class="grid-3" style="margin-top: 20px;">
+      <div class="card">
+        <h3>🏢 Target Environment</h3>
+        <p>Enterprise Perimeter Security, Heterogeneous Firewalls, Industrial SCADA, and IoT Sensor Networks.</p>
+      </div>
+      <div class="card">
+        <h3>⚡ Core Breakthrough</h3>
+        <p>Dual-Path routing: Sub-millisecond Hot Regex + Unsupervised Drain3 AI template mining with RCU hot-reload.</p>
+      </div>
+      <div class="card">
+        <h3>🔒 Forensic Non-Repudiation</h3>
+        <p>Ed25519-signed Merkle Tree ledger linking OCSF 4001 normalized events bit-for-bit to immutable raw bytes.</p>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px;">
+      <div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;"><strong>Team:</strong> Bugweisers</p>
+        <p style="color: var(--text-muted); font-size: 0.95rem;"><strong>Source Code:</strong> https://github.com/Bugweisers/LogSystem</p>
+      </div>
+      <div style="text-align: right;">
+        <span class="badge badge-success">100% Air-Gap Verified</span>
+        <span class="badge">OCSF v1.2.0 Compliant</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: PROBLEM STATEMENT -->
+  <div class="slide">
+    <div>
+      <span class="badge">Problem Context</span>
+      <h2>The Enterprise Log Challenge</h2>
+      <p class="subtitle">Why traditional SIEM and Big Data pre-processing fails in modern high-throughput environments.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="color: var(--danger);">🚨 Industry Pain Points</h3>
+        <ul>
+          <li><strong>Format Fragmentation:</strong> Devices emit logs in Syslog (RFC 3164/5424), JSON, XML, CEF, and proprietary syntaxes.</li>
+          <li><strong>Fragile Regex Fatigue:</strong> Security teams spend weeks manually crafting fragile parsers that break whenever vendors push minor updates.</li>
+          <li><strong>Forensic Loss:</strong> Systems discard raw unparsed strings or silently modify fields, destroying legal evidence non-repudiation.</li>
+          <li><strong>Silent DB Tampering:</strong> Traditional relational log stores allow malicious actors with DB access to rewrite intrusion records undetected.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3 style="color: var(--success);">🎯 What the SIH Problem Requires</h3>
+        <ul>
+          <li><strong>Complete Raw Data Preservation:</strong> Zero information loss; full original bytes stored with provenance.</li>
+          <li><strong>Self-Learning Onboarding:</strong> Auto-cluster novel logs without manual regex engineering.</li>
+          <li><strong>Taxonomic Normalization:</strong> Canonical schema mapping (OCSF 4001 Network Activity).</li>
+          <li><strong>Cryptographic Immutability:</strong> Mathematical verification proofs for every single log entry.</li>
+          <li><strong>100% Air-Gapped Operation:</strong> Zero external CDNs, cloud APIs, or outbound network egress.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px; background: rgba(0, 242, 254, 0.05); border-color: rgba(0, 242, 254, 0.2);">
+      <p style="font-size: 1.05rem; text-align: center; color: var(--primary);">
+        <strong>The ULPF Vision:</strong> "Ingest Any Protocol &rarr; Seal Cryptographically &rarr; AI Self-Learn Syntax &rarr; Output Canonical OCSF &amp; Parquet Data Lake."
+      </p>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: SYSTEM ARCHITECTURE -->
+  <div class="slide">
+    <div>
+      <span class="badge">Technical Architecture</span>
+      <h2>End-to-End Pipeline & Microservices</h2>
+      <p class="subtitle">6 containerized services running on isolated internal bridge with zero external leakage.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>1. Ingestion Layer (:5140, :5141, :5142)</h3>
+        <p>Wire-speed Syslog UDP/TCP and HTTP REST listeners. Attaches UUIDv4 lineage ID, computes SHA-256 seal, and appends to WORM Zstandard chunks.</p>
+      </div>
+
+      <div class="card">
+        <h3>2. Integrity Daemon (:5143)</h3>
+        <p>Batches 1,000 logs into SHA-256 Merkle Trees. Signs root hashes with Ed25519 into append-only <code>ledger.jsonl</code>. Provides sub-ms verification.</p>
+      </div>
+
+      <div class="card">
+        <h3>3. Dual-Path Engine (:8000)</h3>
+        <p><strong>Hot-Path:</strong> Deterministic pre-compiled regex.<br><strong>Cold-Path:</strong> Drain3 prefix-tree clustering + TF-IDF semantic mapper + confidence gate.</p>
+      </div>
+
+      <div class="card">
+        <h3>4. OCSF Normalizer</h3>
+        <p>Validates against OCSF v1.2.0 Class 4001. Invariant: <code>ocsf.metadata.uid == raw_event.lineage_id</code> for non-repudiation.</p>
+      </div>
+
+      <div class="card">
+        <h3>5. Storage & Sinks (:8001)</h3>
+        <p>Apache Parquet columnar Data Lake partitioned by date (<code>data/lake/ocsf_events/</code>) + streaming SIEM forwarder (Splunk HEC, CEF, JSONL).</p>
+      </div>
+
+      <div class="card">
+        <h3>6. Analyst Web Console (:3100)</h3>
+        <p>Next.js 15 UI: Real-time EPS telemetry, 1-Click Pack Promotion queue, and visual Merkle tree audit viewer.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px; padding: 12px 20px;">
+      <p style="font-size: 0.9rem; color: var(--text-muted); font-family: monospace;">
+        <strong>Pipeline Topology:</strong> Network Logs &rarr; Ingestion WORM &rarr; Merkle Ledger &rarr; Dual-Path Router &rarr; OCSF Normalizer &rarr; Parquet Lake / SIEM Stream &rarr; Web Console
+      </p>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: THE DUAL-PATH PARSER ENGINE -->
+  <div class="slide">
+    <div>
+      <span class="badge">Core Innovation</span>
+      <h2>Dual-Path Routing & Self-Learning Parsing</h2>
+      <p class="subtitle">Eliminating 90% of manual parser engineering through unsupervised template mining.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="color: var(--success);">⚡ The HOT Path (Wire Speed)</h3>
+        <ul>
+          <li><strong>Deterministic Regex Execution:</strong> High-throughput parsing for known patterns (e.g. Cisco ASA, Linux Syslog).</li>
+          <li><strong>Throughput:</strong> <strong>~40,000 events/second</strong> per core with sub-30μs latency.</li>
+          <li><strong>Direct Dispatch:</strong> Immediately normalized into OCSF 4001 and streamed to SIEM/Lake without human intervention.</li>
+          <li><strong>100% Field Confidence:</strong> Exact matching ensures zero semantic ambiguity.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3 style="color: var(--warning);">🧠 The COLD Path (AI Self-Learning)</h3>
+        <ul>
+          <li><strong>Drain3 Prefix-Tree Clustering:</strong> Unsupervised streaming clustering that mines log templates (<code>&lt;*&gt;</code>) and isolates variables.</li>
+          <li><strong>TF-IDF Semantic Mapper:</strong> Automatically proposes field mappings against the OCSF schema dictionary.</li>
+          <li><strong>Confidence Gate (&lt; 0.85):</strong> Low-confidence events enter the Analyst Review Queue with auto-suggested mappings.</li>
+          <li><strong>1-Click Promotion &amp; RCU Hot-Reload:</strong> Analyst confirms &rarr; signs with Ed25519 &rarr; packs reload in-memory with <strong>zero downtime</strong>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top: 16px;">
+      <div class="card">
+        <div class="stat-number">90%</div>
+        <div class="stat-label">Reduction in Manual Parser Effort</div>
+      </div>
+      <div class="card">
+        <div class="stat-number">0 pkts</div>
+        <div class="stat-label">Packet Loss During Hot-Reload</div>
+      </div>
+      <div class="card">
+        <div class="stat-number">&lt; 30μs</div>
+        <div class="stat-label">Hot-Path Routing Latency</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: CRYPTOGRAPHIC INTEGRITY & TAMPER DRILL -->
+  <div class="slide">
+    <div>
+      <span class="badge">Forensics & Security</span>
+      <h2>Cryptographic Provenance & Tamper Demonstration</h2>
+      <p class="subtitle">Mathematical proof guaranteeing log non-repudiation and instant intrusion detection.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>🔒 The Cryptographic Architecture</h3>
+        <ul>
+          <li><strong>Microsecond Leaf Seal:</strong> Every raw log payload is content-sealed with SHA-256 upon arrival.</li>
+          <li><strong>WORM Chunk Store:</strong> Raw logs append to compressed Zstandard chunks with exact byte-offset indices.</li>
+          <li><strong>1,000-Event Merkle Trees:</strong> Leaves are hashed pair-wise into an immutable Merkle Root.</li>
+          <li><strong>Ed25519-Signed Ledger:</strong> Every Merkle root is digitally signed and appended to a hash-chained ledger file.</li>
+          <li><strong>Sub-ms Deep Verification:</strong> Given any Lineage ID, ULPF re-verifies raw bytes, leaf hash, Merkle path, and digital signature.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🧪 Live Tamper Drill (Negative Control)</h3>
+        <p style="margin-bottom: 12px;">We engineered a live demonstration CLI (<code>tools/tamper_drill.py</code>) to prove tamper detection to evaluators:</p>
+        <div style="background: rgba(0,0,0,0.5); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.85rem;">
+          <p style="color: var(--success);">🟢 [OK] AUTHENTIC: Bit-for-bit seal matches Merkle root.</p>
+          <p style="color: var(--text-muted); margin: 6px 0;">-- Attacker modifies SQLite DB directly --</p>
+          <p style="color: var(--danger);">🔴 [ALERT] TAMPER DETECTED: DB seal != WORM byte hash!</p>
+          <p style="color: var(--text-muted); margin: 6px 0;">-- Revert to authentic state --</p>
+          <p style="color: var(--success);">🟢 [RESTORED] UI returns to Green Verified status.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <p style="font-size: 0.95rem; color: #e2e8f0;">
+        <strong>Forensic Courtroom Readiness:</strong> Even if a root attacker gains administrative database access and rewrites the database rows, the Merkle tree and immutable chunk store detect the discrepancy instantly.
+      </p>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: PERFORMANCE BENCHMARKS -->
+  <div class="slide">
+    <div>
+      <span class="badge">Hardening & Calibration</span>
+      <h2>Performance & Benchmarks</h2>
+      <p class="subtitle">Empirical benchmark metrics measured using automated calibration suite (tools/benchmark.py).</p>
+    </div>
+
+    <div class="grid-4">
+      <div class="card">
+        <div class="stat-number">390k+</div>
+        <div class="stat-label">Ingestion Content Seal EPS</div>
+        <p style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted);">p50: 2.2μs | p99: 4.5μs</p>
+      </div>
+      <div class="card">
+        <div class="stat-number">40.3k</div>
+        <div class="stat-label">Hot-Path Regex Router EPS</div>
+        <p style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted);">p50: 22.2μs | p99: 80.9μs</p>
+      </div>
+      <div class="card">
+        <div class="stat-number">37.8k</div>
+        <div class="stat-label">OCSF 4001 Normalizer EPS</div>
+        <p style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted);">p50: 22.5μs | p99: 102μs</p>
+      </div>
+      <div class="card">
+        <div class="stat-number">918k+</div>
+        <div class="stat-label">Merkle Tree Leaves/sec</div>
+        <p style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted);">p50: 101μs | p99: 244μs</p>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top: 20px;">
+      <div class="card">
+        <h3>📦 Storage Compression Ratio</h3>
+        <p>Zstandard level-3 chunk compression achieves an average <strong>7.4x to 9.2x compression ratio</strong> over raw Syslog strings, drastically slashing enterprise disk storage expenses while preserving every single byte.</p>
+      </div>
+
+      <div class="card">
+        <h3>📊 AI/ML Data Lake Readability</h3>
+        <p>Normalized events written to date-partitioned Parquet files (<code>data/lake/ocsf_events/</code>) can be loaded directly into <strong>Pandas / PyTorch</strong> with zero preprocessing: <code>pd.read_parquet(...)</code> with native <code>_confidence</code> structs.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: SIH COMPLIANCE MATRIX (ITEMS a-k) -->
+  <div class="slide">
+    <div>
+      <span class="badge badge-success">Traceability Matrix</span>
+      <h2>100% SIH Requirements Compliance (a–k)</h2>
+      <p class="subtitle">Complete, verified mapping to all 11 technical criteria demanded by the evaluation committee.</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 15%;">SIH Item</th>
+          <th style="width: 35%;">Requirement</th>
+          <th style="width: 50%;">ULPF Implementation &amp; Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>a) Raw Preservation</strong></td>
+          <td>Lossless raw event data capture</td>
+          <td>Append-only Zstandard chunks (<code>.zst</code>) + JSON byte-offset index (<code>.idx.json</code>). Zero loss.</td>
+        </tr>
+        <tr>
+          <td><strong>b) Source Extraction</strong></td>
+          <td>Extract source-specific attributes</td>
+          <td>Dual-Path Router: Pre-compiled regex + Drain3 unsupervised prefix-tree mining.</td>
+        </tr>
+        <tr>
+          <td><strong>c) Common Taxonomy</strong></td>
+          <td>Normalize into common event taxonomy</td>
+          <td>Strict 3-layer normalizer enforcing <strong>OCSF v1.2.0 Class 4001 (Network Activity)</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>d) Traceability</strong></td>
+          <td>Full traceability to original logs</td>
+          <td>Invariant <code>ocsf.metadata.uid == raw_event.lineage_id</code> + Ed25519-signed Merkle Tree ledger.</td>
+        </tr>
+        <tr>
+          <td><strong>e) Plug-and-Play</strong></td>
+          <td>Rapid onboarding of new devices</td>
+          <td>Declarative YAML packs with RCU hot-reload (0 service restarts, 0 packet drops).</td>
+        </tr>
+        <tr>
+          <td><strong>f) Unified Visibility</strong></td>
+          <td>Single-pane enterprise visibility</td>
+          <td>Next.js 15 Web Console (:3100) with live EPS meters, cluster review queue, and trace view.</td>
+        </tr>
+        <tr>
+          <td><strong>g) SIEM &amp; Lake</strong></td>
+          <td>Efficient SIEM &amp; Data Lake integration</td>
+          <td>Dual-tier sinks: Date-partitioned Parquet Data Lake + streaming Splunk HEC/CEF dispatcher.</td>
+        </tr>
+        <tr>
+          <td><strong>h) AI/ML Analytics</strong></td>
+          <td>AI-ready security analytics</td>
+          <td>Columnar Parquet with per-field <code>_confidence</code> structs loaded directly into Pandas/PyTorch.</td>
+        </tr>
+        <tr>
+          <td><strong>i) Reduced Effort</strong></td>
+          <td>Drastically reduce parser dev effort</td>
+          <td>Self-Learning loop: Drain3 template mining &rarr; TF-IDF schema proposal &rarr; 1-click promotion.</td>
+        </tr>
+        <tr>
+          <td><strong>j) Air-Gap Safe</strong></td>
+          <td>Deployable in air-gapped networks</td>
+          <td>100% offline: zero CDNs, local fonts, offline vector math (<code>check_airgap.py</code> passes 100%).</td>
+        </tr>
+        <tr>
+          <td><strong>k) Containerized</strong></td>
+          <td>Platform-independent container stack</td>
+          <td>6 multi-stage Dockerfiles, non-privileged users (<code>appuser</code>/<code>node</code>), healthchecks.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SLIDE 8: AIR-GAP & SECURITY RIGOR -->
+  <div class="slide">
+    <div>
+      <span class="badge">Security & Compliance</span>
+      <h2>Air-Gap Engineering & Defensive Hardening</h2>
+      <p class="subtitle">Designed from ground zero for classified and critical infrastructure environments.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>🚫 Zero Egress Networking</h3>
+        <ul>
+          <li>All 6 containers run on an isolated Docker bridge network (<code>internal: true</code> in airgap compose).</li>
+          <li>Zero outbound connections to Google Fonts, external CDNs, or cloud licensing servers.</li>
+          <li>Validated via automated socket egress drill (<code>tools/check_airgap.py</code>).</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🛡️ Principle of Least Privilege</h3>
+        <ul>
+          <li>All containers drop all root Linux capabilities: <code>cap_drop: ALL</code>.</li>
+          <li>Enforced kernel security: <code>no-new-privileges: true</code>.</li>
+          <li>Run as non-privileged service accounts (<code>node:1000</code> and <code>appuser:10001</code>).</li>
+          <li>Self-bootstrapping <code>volume-init</code> handles secure directory permissions.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🔏 Cryptographic Key Hierarchy</h3>
+        <ul>
+          <li>Ed25519 high-speed elliptic curve digital signatures.</li>
+          <li>Pack signing quarantine: Unsigned or tampered YAML packs are immediately quarantined.</li>
+          <li>Hardware security module (HSM) ready via PKCS#8 key standards.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">
+      <p style="font-size: 1rem; color: #a7f3d0; text-align: center;">
+        <strong>Audit Scanner Verified:</strong> <code>python tools/check_airgap.py</code> scans all HTML, CSS, JS, and Python files to confirm 100% air-gap compliance.
+      </p>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: LIVE DEMONSTRATION WORKFLOW -->
+  <div class="slide">
+    <div>
+      <span class="badge">Interactive Validation</span>
+      <h2>Live Demonstration Flow for SIH Judges</h2>
+      <p class="subtitle">Complete sequence of live operations ready for video recording or physical jury evaluation.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3 style="color: var(--primary);">Step 1: Multi-Device IoT Stream</h3>
+        <p style="font-size: 0.85rem; font-family: monospace; color: var(--primary); margin-bottom: 6px;">python tools/iot_live_stream.py --rate 10 --count 30</p>
+        <p>Generates real-time streams from 5 simulated perimeter appliances (Cisco ASA, IoT Smart Meters, SCADA Pumps, Linux Gateways). Live EPS meters update in real-time on Web Dashboard.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="color: var(--warning);">Step 2: Cold-Path 1-Click Review</h3>
+        <p style="font-size: 0.85rem; font-family: monospace; color: var(--warning); margin-bottom: 6px;">http://localhost:3100/queue</p>
+        <p>Judges see novel IoT/SCADA clusters mined by Drain3. The TF-IDF semantic mapper suggests OCSF mappings. Analyst clicks "Confirm &amp; Promote" &rarr; Signed pack compiled &amp; hot-reloaded instantly.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="color: var(--danger);">Step 3: Cryptographic Tamper Drill</h3>
+        <p style="font-size: 0.85rem; font-family: monospace; color: var(--danger); margin-bottom: 6px;">python tools/tamper_drill.py --tamper-db</p>
+        <p>Simulates database breach. The UI trace banner flips from Green Verified to <strong>RED CRITICAL SECURITY ALERT</strong>. Running <code>--restore</code> restores state back to Green instantly.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+      <h3>🎯 Summary of Jury Key Takeaways:</h3>
+      <p>1. It is not a mockup; it is a fully functioning, containerized platform running on localhost.<br>
+         2. Provenance is mathematically verifiable, not just a database timestamp.<br>
+         3. Novel log formats are handled automatically without writing regular expressions from scratch.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: CONCLUSION & SUMMARY -->
+  <div class="slide">
+    <div>
+      <span class="badge badge-success">Conclusion & Impact</span>
+      <h2>Why ULPF Wins</h2>
+      <p class="subtitle">Transforming enterprise log ingestion from a manual bottleneck into an automated, verifiable pipeline.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>💰 Enterprise Cost Reduction</h3>
+        <p>90% reduction in parser maintenance engineering. 7.4x storage reduction via Zstandard WORM chunks.</p>
+      </div>
+      <div class="card">
+        <h3>⚖️ Forensic Admissibility</h3>
+        <p>Courtroom-grade non-repudiation: Ed25519-signed Merkle trees mathematically link SIEM alerts to raw disk bytes.</p>
+      </div>
+      <div class="card">
+        <h3>🚀 Scalability & Readiness</h3>
+        <p>Production-ready Docker Compose architecture deployable in seconds across standard or air-gapped systems.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 24px; text-align: center; padding: 28px;">
+      <h3 style="font-size: 1.5rem; justify-content: center; margin-bottom: 10px;">Universal Log Pre-processing Framework</h3>
+      <p style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 16px;">Built with precision for the Smart India Hackathon.</p>
+      <div style="display: flex; justify-content: center; gap: 20px;">
+        <span class="badge" style="font-size: 0.95rem;">GitHub: https://github.com/Bugweisers/LogSystem</span>
+        <span class="badge badge-success" style="font-size: 0.95rem;">Status: Fully Tested &amp; Deployed</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Presentation Controls -->
+<div class="controls">
+  <button class="btn" onclick="prevSlide()">◀ Previous</button>
+  <span class="slide-counter" id="counter">1 / 10</span>
+  <button class="btn" onclick="nextSlide()">Next ▶</button>
+  <button class="btn" onclick="window.print()" title="Print to PDF / Save Slides">🖨️ PDF</button>
+  <button class="btn" onclick="toggleFullScreen()" title="Full Screen View">⛶ Fullscreen</button>
+</div>
+
+<script>
+  let currentSlide = 0;
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+
+  function updateSlide(index) {
+    if (index < 0) index = 0;
+    if (index >= slides.length) index = slides.length - 1;
+    currentSlide = index;
+
+    slides.forEach((s, i) => {
+      s.classList.toggle('active', i === currentSlide);
+    });
+
+    counter.textContent = `${currentSlide + 1} / ${slides.length}`;
+  }
+
+  function nextSlide() {
+    updateSlide(currentSlide + 1);
+  }
+
+  function prevSlide() {
+    updateSlide(currentSlide - 1);
+  }
+
+  function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      prevSlide();
+    } else if (e.key === 'f' || e.key === 'F') {
+      toggleFullScreen();
+    } else if (e.key === 'Home') {
+      updateSlide(0);
+    } else if (e.key === 'End') {
+      updateSlide(slides.length - 1);
+    }
+  });
+</script>
+
+</body>
+</html>

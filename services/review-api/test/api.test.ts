@@ -104,4 +104,99 @@ describe("review-api M8 Endpoints & Workflow", () => {
     expect(Array.isArray(res.packs)).toBe(true);
     expect(res.packs.length).toBeGreaterThan(0);
   });
+
+  it("GET /metrics returns Prometheus text and JSON observability metrics", async () => {
+    const textRes = await fetch(`${baseUrl}/metrics`);
+    expect(textRes.status).toBe(200);
+    const text = await textRes.text();
+    expect(text).toContain("ulpf_events_ingested_total");
+    expect(text).toContain("ulpf_normalized_events_total");
+
+    const jsonRes = await fetch(`${baseUrl}/metrics`, {
+      headers: { Accept: "application/json" },
+    });
+    expect(jsonRes.status).toBe(200);
+    const json = await jsonRes.json();
+    expect(typeof json.events_ingested_total).toBe("number");
+    expect(typeof json.memory_rss_bytes).toBe("number");
+  });
+
+  it("POST /queue/clusters/:id/confirm re-normalizes with stripped quotes and enriched OCSF fields", async () => {
+    const clusterId = `cluster_norm_test_${Date.now()}`;
+    const lineageId = `lid_norm_${Date.now()}`;
+    const db = getDb();
+    const now = new Date().toISOString();
+
+    // Insert extraction_history with quoted values
+    const extFields = JSON.stringify({
+      "Src IP": '"172.17.17.130"',
+      "Dst IP": '"20.101.57.9"',
+      "Src port": '"123"',
+      "Dst port": '"123"',
+      protocol: '"UDP"',
+      "Log subtype": '"Allowed"',
+    });
+
+    db.prepare(`
+      INSERT INTO raw_events (lineage_id, sha256_hash, ingestion_timestamp, source_ip, source_port, transport_protocol, char_encoding, raw_size_bytes, storage_pointer, chunk_id, merkle_leaf_index, created_at)
+      VALUES (?, 'hash_norm_test', ?, '172.17.17.130', 123, 'UDP', 'ASCII', 200, 'raw_store://chunk_1/offset_0', 'chunk_1', 0, ?)
+    `).run(lineageId, now, now);
+
+    db.prepare(`
+      INSERT INTO extraction_history (lineage_id, path_taken, source_type, parser_version, extracted_fields, confidence_scores, processed_at)
+      VALUES (?, 'COLD', 'cold_path_unmapped', '0.1.0-cold', ?, '{}', ?)
+    `).run(lineageId, extFields, now);
+
+    const extRow = db.prepare("SELECT extraction_id FROM extraction_history WHERE lineage_id = ?").get(lineageId) as { extraction_id: number };
+
+    // Insert review queue item
+    db.prepare(`
+      INSERT INTO review_queue (lineage_id, extraction_id, candidate_mapping, cluster_id, status, created_at)
+      VALUES (?, ?, '{}', ?, 'pending', ?)
+    `).run(lineageId, extRow.extraction_id, clusterId, now);
+
+    // Seed prior unmapped stub in normalization_history
+    db.prepare(`
+      INSERT INTO normalization_history (lineage_id, extraction_id, ocsf_class_uid, ocsf_event_json, schema_valid, published_to_bus, normalized_at)
+      VALUES (?, ?, 4001, '{"class_uid":4001,"activity_name":"Traffic"}', 1, 1, ?)
+    `).run(lineageId, extRow.extraction_id, now);
+
+    // Analyst promotes cluster with overrides
+    const res = await fetch(`${baseUrl}/queue/clusters/${clusterId}/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actor: "analyst:kartik",
+        overrides: {
+          "Src IP": "src_endpoint.ip",
+          "Dst IP": "dst_endpoint.ip",
+          "Src port": "src_endpoint.port",
+          "Dst port": "dst_endpoint.port",
+          protocol: "connection_info.protocol_name",
+          "Log subtype": "action",
+        },
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("confirmed");
+
+    // Verify normalization_history has been replaced with enriched OCSF event
+    const normRow = db.prepare("SELECT ocsf_event_json FROM normalization_history WHERE lineage_id = ?").get(lineageId) as { ocsf_event_json: string };
+    expect(normRow).toBeDefined();
+    const event = JSON.parse(normRow.ocsf_event_json);
+
+    // Verify fields are present, clean, and without quotes
+    expect(event.src_endpoint?.ip).toBe("172.17.17.130");
+    expect(event.dst_endpoint?.ip).toBe("20.101.57.9");
+    expect(event.src_endpoint?.port).toBe(123);
+    expect(event.dst_endpoint?.port).toBe(123);
+    expect(event.connection_info?.protocol_name).toBe("UDP");
+    expect(event.connection_info?.protocol_num).toBe(17);
+    expect(event.activity_name).toBe("Open");
+    expect(event.activity_id).toBe(1);
+  });
 });
+
+

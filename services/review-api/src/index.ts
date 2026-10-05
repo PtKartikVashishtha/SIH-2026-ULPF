@@ -50,6 +50,74 @@ app.get("/ready", (_req, res) => {
   }
 });
 
+// ── /metrics — Prometheus & JSON observability exporter ─────────────────────
+
+app.get("/metrics", (req, res) => {
+  try {
+    const db = getDb();
+    const rawCount = (db.prepare("SELECT COUNT(*) as c FROM raw_events").get() as { c: number }).c;
+    const hotCount = (db.prepare("SELECT COUNT(*) as c FROM extraction_history WHERE path_taken = 'HOT'").get() as { c: number }).c;
+    const coldCount = (db.prepare("SELECT COUNT(*) as c FROM extraction_history WHERE path_taken = 'COLD'").get() as { c: number }).c;
+    const normCount = (db.prepare("SELECT COUNT(*) as c FROM normalization_history").get() as { c: number }).c;
+    const chunkCount = (db.prepare("SELECT COUNT(*) as c FROM merkle_chunks").get() as { c: number }).c;
+    const pendingReview = (db.prepare("SELECT COUNT(*) as c FROM review_queue WHERE status = 'pending'").get() as { c: number }).c;
+    const activePacks = (db.prepare("SELECT COUNT(*) as c FROM mapping_packs WHERE status = 'active'").get() as { c: number }).c;
+    const mem = process.memoryUsage();
+    const uptimeSec = Math.floor(process.uptime());
+
+    const accept = req.headers["accept"] || "";
+    if (accept.includes("application/json")) {
+      return res.json({
+        events_ingested_total: rawCount,
+        hot_path_events_total: hotCount,
+        cold_path_events_total: coldCount,
+        normalized_events_total: normCount,
+        merkle_chunks_total: chunkCount,
+        review_queue_depth: pendingReview,
+        active_packs_total: activePacks,
+        memory_rss_bytes: mem.rss,
+        memory_heap_used_bytes: mem.heapUsed,
+        uptime_seconds: uptimeSec,
+      });
+    }
+
+    const prometheus = [
+      "# HELP ulpf_events_ingested_total Total raw events ingested into byte-level storage",
+      "# TYPE ulpf_events_ingested_total counter",
+      `ulpf_events_ingested_total ${rawCount}`,
+      "# HELP ulpf_hot_path_events_total Events processed via hot-path deterministic parsers",
+      "# TYPE ulpf_hot_path_events_total counter",
+      `ulpf_hot_path_events_total ${hotCount}`,
+      "# HELP ulpf_cold_path_events_total Events diverted to AI-assisted cold path",
+      "# TYPE ulpf_cold_path_events_total counter",
+      `ulpf_cold_path_events_total ${coldCount}`,
+      "# HELP ulpf_normalized_events_total Total events normalized into OCSF 4001 taxonomy",
+      "# TYPE ulpf_normalized_events_total counter",
+      `ulpf_normalized_events_total ${normCount}`,
+      "# HELP ulpf_merkle_chunks_total Sealed Merkle tree chunks with cryptographic commitments",
+      "# TYPE ulpf_merkle_chunks_total counter",
+      `ulpf_merkle_chunks_total ${chunkCount}`,
+      "# HELP ulpf_review_queue_depth Current pending analyst review queue depth",
+      "# TYPE ulpf_review_queue_depth gauge",
+      `ulpf_review_queue_depth ${pendingReview}`,
+      "# HELP ulpf_active_packs_total Cryptographically signed and verified mapping packs",
+      "# TYPE ulpf_active_packs_total gauge",
+      `ulpf_active_packs_total ${activePacks}`,
+      "# HELP ulpf_memory_rss_bytes Resident set size in bytes",
+      "# TYPE ulpf_memory_rss_bytes gauge",
+      `ulpf_memory_rss_bytes ${mem.rss}`,
+      "# HELP ulpf_uptime_seconds Process uptime in seconds",
+      "# TYPE ulpf_uptime_seconds counter",
+      `ulpf_uptime_seconds ${uptimeSec}`,
+    ].join("\n") + "\n";
+
+    res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    return res.send(prometheus);
+  } catch (e) {
+    return res.status(500).json({ error: { code: "METRICS_ERROR", message: String(e) } });
+  }
+});
+
 // ── /internal/packs — cluster-grouped draft/staged packs ─────────────────────
 
 app.get("/internal/packs/drafts", (_req, res) => {
@@ -323,11 +391,28 @@ app.get("/queue/clusters/:cluster_id", async (req, res) => {
   });
 });
 
-app.post("/queue/clusters/:cluster_id/confirm", (req, res) => {
+app.post("/queue/clusters/:cluster_id/confirm", async (req, res) => {
   const db = getDb();
   const { cluster_id } = req.params;
-  const { actor, confirmed_mapping } = req.body as { actor?: string; confirmed_mapping?: unknown };
+  const actor = req.body?.actor;
   if (!actor) return errorResponse(res, "MISSING_ACTOR", "actor is required");
+
+  // Accept confirmed_mapping, overrides, or mapping
+  const inputMapping = req.body?.confirmed_mapping || req.body?.overrides || req.body?.mapping;
+  let mappingObj: Record<string, any> = (inputMapping && typeof inputMapping === "object" ? inputMapping : {}) as Record<string, any>;
+
+  // Fallback to cluster's stored candidate_mapping from review_queue if input was empty
+  if (Object.keys(mappingObj).length === 0) {
+    const queueRow = db.prepare(
+      "SELECT candidate_mapping FROM review_queue WHERE cluster_id = ? AND candidate_mapping IS NOT NULL LIMIT 1"
+    ).get(cluster_id) as { candidate_mapping?: string } | undefined;
+    if (queueRow?.candidate_mapping) {
+      const parsedCand = parseJson(queueRow.candidate_mapping) as Record<string, any>;
+      if (parsedCand && typeof parsedCand === "object") {
+        mappingObj = parsedCand;
+      }
+    }
+  }
 
   // Check for concurrent confirmation (409)
   const pendingCount = (db.prepare(
@@ -343,7 +428,7 @@ app.post("/queue/clusters/:cluster_id/confirm", (req, res) => {
   const now = new Date().toISOString();
   db.prepare(
     "UPDATE review_queue SET status='confirmed', assigned_analyst=?, confirmed_mapping=?, resolved_at=? WHERE cluster_id=?"
-  ).run(actor, JSON.stringify(confirmed_mapping ?? {}), now, cluster_id);
+  ).run(actor, JSON.stringify(mappingObj), now, cluster_id);
 
   const cleanCluster = cluster_id.replace(/[^a-zA-Z0-9_]/g, "_");
   const packId = `pack_${cleanCluster}_v1.0.0`;
@@ -361,13 +446,37 @@ app.post("/queue/clusters/:cluster_id/confirm", (req, res) => {
     VALUES (?, 'pack_confirmed', ?, ?, ?)
   `).run(packId, actor, eventHash, now);
 
+  // Trigger pipeline-svc /onboard to generate named regex, sign Ed25519, write YAML to disk, and RCU hot-reload
+  const pipelineUrl = process.env.PIPELINE_HTTP_URL || "http://localhost:8000";
+  try {
+    await fetch(`${pipelineUrl}/onboard`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cluster_id, actor, confirmed_mapping: mappingObj }),
+    });
+  } catch (err: any) {
+    console.warn("Pipeline HTTP /onboard error, attempting local worker fallback:", err.message);
+    try {
+      const workerScript = join(REPO_ROOT, "tools", "pipeline_worker.py");
+      await execFileAsync("python", [
+        workerScript,
+        "--onboard-cluster", cluster_id,
+        "--actor", actor,
+        "--mapping-json", JSON.stringify(mappingObj),
+      ]);
+    } catch (e: any) {
+      console.warn("Worker onboard fallback error:", e.message);
+    }
+  }
+
   // Normalize confirmed cluster items into normalization_history
   const clusterItems = db.prepare(`
-    SELECT rq.lineage_id, rq.extraction_id, eh.extracted_fields, eh.source_type
+    SELECT rq.lineage_id, rq.extraction_id, eh.extracted_fields, eh.source_type, re.source_ip as raw_src_ip, re.source_port as raw_src_port
     FROM review_queue rq
     LEFT JOIN extraction_history eh ON eh.lineage_id = rq.lineage_id
+    LEFT JOIN raw_events re ON re.lineage_id = rq.lineage_id
     WHERE rq.cluster_id = ?
-  `).all(cluster_id) as Array<{ lineage_id: string; extraction_id: number; extracted_fields: string; source_type: string }>;
+  `).all(cluster_id) as Array<{ lineage_id: string; extraction_id: number; extracted_fields: string; source_type: string; raw_src_ip?: string; raw_src_port?: number }>;
 
   const insNorm = db.prepare(`
     INSERT INTO normalization_history (
@@ -375,11 +484,13 @@ app.post("/queue/clusters/:cluster_id/confirm", (req, res) => {
     ) VALUES (?, ?, ?, ?, 1, 1, ?)
   `);
 
-  const mappingObj = (confirmed_mapping && typeof confirmed_mapping === "object" ? confirmed_mapping : {}) as Record<string, any>;
-
   for (const it of clusterItems) {
-    const already = db.prepare("SELECT 1 FROM normalization_history WHERE lineage_id = ?").get(it.lineage_id);
-    if (already) continue;
+    // Delete any prior unmapped/draft stub so confirmation replaces it with the enriched OCSF record
+    try {
+      db.prepare("DELETE FROM normalization_history WHERE lineage_id = ?").run(it.lineage_id);
+    } catch {
+      // ignore
+    }
 
     const ef = (parseJson(it.extracted_fields) || {}) as Record<string, any>;
     const ocsfEvent: Record<string, any> = {
@@ -394,7 +505,7 @@ app.post("/queue/clusters/:cluster_id/confirm", (req, res) => {
       metadata: {
         product: {
           name: "ULPF Onboarded Log",
-          vendor_name: it.source_type || "Universal",
+          vendor_name: (it.source_type && it.source_type !== "cold_path_unmapped") ? it.source_type : "Universal Perimeter",
           version: "1.0.0",
         },
         version: "1.2.0",
@@ -402,32 +513,83 @@ app.post("/queue/clusters/:cluster_id/confirm", (req, res) => {
     };
 
     for (const [rawKey, rawVal] of Object.entries(ef)) {
-      const cleanVal = String(rawVal).replace(/^["']|["']$/g, "");
-      const mapEntry = mappingObj[rawKey];
-      const targetAttr = typeof mapEntry === "string" ? mapEntry : mapEntry?.candidate_ocsf_attribute;
-      if (!targetAttr) continue;
+      const cleanVal = String(rawVal).replace(/^[\s"'\\/]+|[\s"'\\/]+$/g, "").trim();
+      if (!cleanVal) continue;
 
-      if (targetAttr === "src_endpoint.ip") {
+      const mapEntry = mappingObj[rawKey];
+      let targetAttr = typeof mapEntry === "string" ? mapEntry : mapEntry?.candidate_ocsf_attribute;
+      if (targetAttr === "unmapped") targetAttr = undefined;
+
+      const kLower = rawKey.toLowerCase().replace(/[\s\-_]+/g, "_");
+      const effAttr = targetAttr || (
+        kLower.includes("src_ip") || kLower === "src" || kLower === "source_ip" || kLower === "source" ? "src_endpoint.ip" :
+        kLower.includes("dst_ip") || kLower === "dst" || kLower === "dest_ip" || kLower === "destination_ip" ? "dst_endpoint.ip" :
+        kLower.includes("src_port") || kLower === "sport" || kLower === "source_port" ? "src_endpoint.port" :
+        kLower.includes("dst_port") || kLower === "dport" || kLower === "dest_port" || kLower === "destination_port" ? "dst_endpoint.port" :
+        kLower === "protocol" || kLower === "proto" ? "connection_info.protocol_name" :
+        kLower === "action" || kLower === "subtype" || kLower === "log_subtype" ? "action" :
+        kLower === "time" || kLower === "timestamp" ? "time" : undefined
+      );
+      if (!effAttr) continue;
+
+      if (effAttr === "src_endpoint.ip") {
         ocsfEvent.src_endpoint = { ...(ocsfEvent.src_endpoint || {}), ip: cleanVal };
-      } else if (targetAttr === "dst_endpoint.ip") {
+      } else if (effAttr === "dst_endpoint.ip") {
         ocsfEvent.dst_endpoint = { ...(ocsfEvent.dst_endpoint || {}), ip: cleanVal };
-      } else if (targetAttr === "src_endpoint.port") {
-        ocsfEvent.src_endpoint = { ...(ocsfEvent.src_endpoint || {}), port: parseInt(cleanVal) || 0 };
-      } else if (targetAttr === "dst_endpoint.port") {
-        ocsfEvent.dst_endpoint = { ...(ocsfEvent.dst_endpoint || {}), port: parseInt(cleanVal) || 0 };
-      } else if (targetAttr === "http_request.http_method") {
-        ocsfEvent.http_request = { ...(ocsfEvent.http_request || {}), http_method: cleanVal };
-      } else if (targetAttr === "http_request.url.path") {
+      } else if (effAttr === "src_endpoint.port") {
+        const p = parseInt(cleanVal, 10);
+        if (!isNaN(p) && p > 0 && p <= 65535) ocsfEvent.src_endpoint = { ...(ocsfEvent.src_endpoint || {}), port: p };
+      } else if (effAttr === "dst_endpoint.port") {
+        const p = parseInt(cleanVal, 10);
+        if (!isNaN(p) && p > 0 && p <= 65535) ocsfEvent.dst_endpoint = { ...(ocsfEvent.dst_endpoint || {}), port: p };
+      } else if (effAttr === "connection_info.protocol_name") {
+        const pLower = cleanVal.toLowerCase();
+        ocsfEvent.connection_info = {
+          ...(ocsfEvent.connection_info || {}),
+          protocol_name: pLower.toUpperCase(),
+          protocol_num: pLower === "tcp" ? 6 : pLower === "udp" ? 17 : pLower === "icmp" ? 1 : 99,
+        };
+      } else if (effAttr === "action") {
+        const actLower = cleanVal.toLowerCase();
+        if (["deny", "denied", "drop", "dropped", "block", "blocked", "refuse", "refused", "reject"].some(w => actLower.includes(w))) {
+          ocsfEvent.activity_id = 2; // Refuse
+          ocsfEvent.activity_name = "Refuse";
+          ocsfEvent.severity_id = 4;
+        } else if (["permit", "permitted", "allow", "allowed", "built", "open", "accept", "pass"].some(w => actLower.includes(w))) {
+          ocsfEvent.activity_id = 1; // Open
+          ocsfEvent.activity_name = "Open";
+          ocsfEvent.severity_id = 1;
+        } else if (["teardown", "close", "disconnected", "end"].some(w => actLower.includes(w))) {
+          ocsfEvent.activity_id = 3; // Close
+          ocsfEvent.activity_name = "Close";
+          ocsfEvent.severity_id = 1;
+        }
+      } else if (effAttr === "http_request.http_method") {
+        ocsfEvent.http_request = { ...(ocsfEvent.http_request || {}), http_method: cleanVal.toUpperCase() };
+      } else if (effAttr === "http_request.url.path") {
         ocsfEvent.http_request = { ...(ocsfEvent.http_request || {}), url: { path: cleanVal } };
-      } else if (targetAttr === "http_request.user_agent") {
-        ocsfEvent.http_request = { ...(ocsfEvent.http_request || {}), user_agent: cleanVal };
-      } else if (targetAttr === "http_response.code") {
-        ocsfEvent.http_response = { ...(ocsfEvent.http_response || {}), code: parseInt(cleanVal) || 200 };
-      } else if (targetAttr === "traffic.bytes_out") {
-        ocsfEvent.traffic = { ...(ocsfEvent.traffic || {}), bytes_out: parseInt(cleanVal) || 0 };
-      } else if (targetAttr === "time" || targetAttr === "timestamp") {
+      } else if (effAttr === "http_request.user_agent") {
+        if (/mozilla|gecko|webkit|chrome|safari|curl|wget|python|httpclient|postman/i.test(cleanVal)) {
+          ocsfEvent.http_request = { ...(ocsfEvent.http_request || {}), user_agent: cleanVal };
+        }
+      } else if (effAttr === "http_response.code") {
+        ocsfEvent.http_response = { ...(ocsfEvent.http_response || {}), code: parseInt(cleanVal, 10) || 200 };
+      } else if (effAttr === "traffic.bytes_out") {
+        ocsfEvent.traffic = { ...(ocsfEvent.traffic || {}), bytes_out: parseInt(cleanVal, 10) || 0 };
+      } else if (effAttr === "time" || effAttr === "timestamp") {
         ocsfEvent.time = cleanVal;
       }
+    }
+
+    // Fallback: Populate src_endpoint from raw_events if not extracted from text
+    if (!ocsfEvent.src_endpoint?.ip && it.raw_src_ip) {
+      ocsfEvent.src_endpoint = { ...(ocsfEvent.src_endpoint || {}), ip: it.raw_src_ip };
+    }
+    if (!ocsfEvent.src_endpoint?.port && it.raw_src_port) {
+      ocsfEvent.src_endpoint = { ...(ocsfEvent.src_endpoint || {}), port: it.raw_src_port };
+    }
+    if (ocsfEvent.dst_endpoint && !ocsfEvent.dst_endpoint.port && ocsfEvent.dst_endpoint.ip) {
+      ocsfEvent.dst_endpoint.port = 0;
     }
 
     try {
@@ -1011,6 +1173,8 @@ app.post(["/ingest/csv", "/api/upload-csv"], async (req, res) => {
 
   const parsedRecords: Array<Record<string, any>> = records.map((r, idx) => ({
     ...r,
+    route: r["path_taken"] || "COLD",
+    sha256: r["sha256_hash"],
     extracted_fields: parseJson(r["extracted_fields"]),
     confidence_scores: parseJson(r["confidence_scores"]),
     sample_preview: logs[idx]?.raw_log?.slice(0, 160) || "",

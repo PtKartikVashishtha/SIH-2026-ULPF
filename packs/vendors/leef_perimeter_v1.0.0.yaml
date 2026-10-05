@@ -1,0 +1,19 @@
+pack_id: leef_perimeter_v1.0.0
+source_type: leef_perimeter
+version: 1.0.0
+description: IBM QRadar Log Event Extended Format (LEEF) Perimeter mapping pack
+parent_pack_id: base_network_v1.0.0
+signatures:
+- name: leef_network_event
+  pattern: LEEF:(?:1\.0|2\.0)\|(?P<vendor>[^\|]+)\|(?P<product>[^\|]+)\|(?P<version>[^\|]+)\|(?P<event_id>[^\|]+)\|.*?src=(?P<src_ip>\d+\.\d+\.\d+\.\d+).*?dst=(?P<dst_ip>\d+\.\d+\.\d+\.\d+).*?srcPort=(?P<src_port>\d+).*?dstPort=(?P<dst_port>\d+).*?proto=(?P<proto>\w+).*?(?:act|action)=(?P<action>\w+)
+  extracted_fields:
+    action: $action
+    protocol: $proto
+    src_ip: $src_ip
+    src_port: $src_port
+    dst_ip: $dst_ip
+    dst_port: $dst_port
+    vendor: $vendor
+    product: $product
+signer_key_id: dev_signing
+signature: f9e76eb31d4a0f298737ad4ec51fa77057d25db7cfe4bdb3cfab894c52dcfdab5e8ddc820b5277248ba6289e76296cdd33ad6bf6fba1ad62733b5ea8b15d1409
