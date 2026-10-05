@@ -446,7 +446,7 @@ Launch all microservices in strictly isolated, air-gapped mode with zero externa
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.airgap.yml up -d
 ```
-
+#### check port - 3100 for frontend
 > **Air-Gap Security Guarantees:**
 > * `pull_policy: never`: Starts immediately from local container images without querying external registries.
 > * `internal: true`: All inter-service traffic is confined to an isolated internal bridge with zero outbound egress.
